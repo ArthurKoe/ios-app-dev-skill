@@ -1,0 +1,234 @@
+{
+ "cases": [
+  {
+   "path": "data/fuji/L0/218_1272.rdem",
+   "level": 0,
+   "cr": 218,
+   "cc": 1272,
+   "width": 750,
+   "height": 900,
+   "min": 586.0,
+   "max": 3113.0,
+   "hasWater": true,
+   "waterCount": 1862,
+   "sum": 1138947328.0,
+   "samples": [
+    {
+     "row": 0,
+     "col": 0,
+     "elev": 1667.0,
+     "water": false
+    },
+    {
+     "row": 0,
+     "col": 749,
+     "elev": 1521.0,
+     "water": false
+    },
+    {
+     "row": 899,
+     "col": 0,
+     "elev": 1415.0,
+     "water": false
+    },
+    {
+     "row": 899,
+     "col": 749,
+     "elev": 810.0,
+     "water": false
+    },
+    {
+     "row": 765,
+     "col": 377,
+     "elev": 1551.0,
+     "water": false
+    },
+    {
+     "row": 573,
+     "col": 454,
+     "elev": 1274.0,
+     "water": false
+    },
+    {
+     "row": 460,
+     "col": 728,
+     "elev": 1933.0,
+     "water": false
+    },
+    {
+     "row": 242,
+     "col": 547,
+     "elev": 2009.0,
+     "water": false
+    },
+    {
+     "row": 277,
+     "col": 474,
+     "elev": 2503.0,
+     "water": false
+    },
+    {
+     "row": 36,
+     "col": 407,
+     "elev": 1920.0,
+     "water": false
+    },
+    {
+     "row": 67,
+     "col": 419,
+     "elev": 1700.0,
+     "water": false
+    },
+    {
+     "row": 14,
+     "col": 701,
+     "elev": 1822.0,
+     "water": false
+    },
+    {
+     "row": 157,
+     "col": 208,
+     "elev": 1381.0,
+     "water": false
+    },
+    {
+     "row": 731,
+     "col": 611,
+     "elev": 1048.0,
+     "water": false
+    },
+    {
+     "row": 584,
+     "col": 503,
+     "elev": 1190.0,
+     "water": false
+    },
+    {
+     "row": 821,
+     "col": 2,
+     "elev": 1647.0,
+     "water": false
+    }
+   ]
+  },
+  {
+   "path": "data/fuji/L1/109_636.rdem",
+   "level": 1,
+   "cr": 109,
+   "cc": 636,
+   "width": 500,
+   "height": 600,
+   "min": 0.0,
+   "max": 3104.0,
+   "hasWater": true,
+   "waterCount": 428,
+   "sum": 296374528.0,
+   "samples": [
+    {
+     "row": 0,
+     "col": 0,
+     "elev": 1661.0,
+     "water": false
+    },
+    {
+     "row": 0,
+     "col": 499,
+     "elev": 586.0,
+     "water": false
+    },
+    {
+     "row": 599,
+     "col": 0,
+     "elev": 518.0,
+     "water": false
+    },
+    {
+     "row": 599,
+     "col": 499,
+     "elev": 0.0,
+     "water": true
+    },
+    {
+     "row": 283,
+     "col": 136,
+     "elev": 1662.0,
+     "water": false
+    },
+    {
+     "row": 307,
+     "col": 413,
+     "elev": 1109.0,
+     "water": false
+    },
+    {
+     "row": 453,
+     "col": 128,
+     "elev": 491.0,
+     "water": false
+    },
+    {
+     "row": 570,
+     "col": 204,
+     "elev": 331.0,
+     "water": false
+    },
+    {
+     "row": 20,
+     "col": 321,
+     "elev": 888.0,
+     "water": false
+    },
+    {
+     "row": 86,
+     "col": 274,
+     "elev": 1782.0,
+     "water": false
+    },
+    {
+     "row": 493,
+     "col": 42,
+     "elev": 1037.0,
+     "water": false
+    },
+    {
+     "row": 569,
+     "col": 13,
+     "elev": 641.0,
+     "water": false
+    },
+    {
+     "row": 149,
+     "col": 432,
+     "elev": 321.0,
+     "water": false
+    },
+    {
+     "row": 187,
+     "col": 376,
+     "elev": 1255.0,
+     "water": false
+    },
+    {
+     "row": 521,
+     "col": 418,
+     "elev": 349.0,
+     "water": false
+    },
+    {
+     "row": 253,
+     "col": 269,
+     "elev": 1463.0,
+     "water": false
+    }
+   ]
+  }
+ ],
+ "point": {
+  "region": "fuji",
+  "level": 0,
+  "lat": 35.3606,
+  "lon": 138.7274,
+  "elev": 3765.072021484375,
+  "tolerance": 0.01
+ }
+}

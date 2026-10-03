@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Map module demo · Relief Studio</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="../css/map.css">
+  <style>
+    :root {
+      --ink: #161a22;
+      --muted: #5d6573;
+      --line: #dfe3e8;
+      --accent: #ff2f68;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      color: var(--ink);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { display: flex; flex-direction: column; background: #f6f7f9; }
+    header {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+      padding: 10px 16px; border-bottom: 1px solid var(--line); background: #fff;
+    }
+    h1 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: 0.01em; }
+    h1 span { color: var(--muted); font-weight: 500; }
+    label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    select, input, button {
+      font: inherit; font-size: 13px; height: 30px; border: 1px solid var(--line);
+      border-radius: 6px; background: #fff; color: var(--ink); padding: 0 8px;
+    }
+    button { cursor: pointer; font-weight: 600; }
+    button:hover { border-color: #b9c0ca; }
+    .search { position: relative; }
+    .search input { width: 240px; }
+    .results {
+      position: absolute; z-index: 2000; top: 34px; left: 0; width: 340px; margin: 0; padding: 4px;
+      list-style: none; background: #fff; border: 1px solid var(--line); border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+    }
+    .results:empty { display: none; }
+    .results li { padding: 6px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+    .results li:hover { background: #f1f3f6; }
+    .results li b { display: block; font-size: 13px; }
+    .results li.msg { color: var(--muted); cursor: default; }
+    .readout { margin-left: auto; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
+    .readout b { color: var(--accent); }
+    #map { flex: 1; min-height: 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Relief Studio <span>· map module demo</span></h1>
+    <label>Region <select id="region"><option value="world">Whole world</option></select></label>
+    <div class="search">
+      <input id="search" type="search" placeholder="Search a place or type lat, lon…" autocomplete="off" aria-label="Search places">
+      <ul id="results" class="results" role="listbox"></ul>
+    </div>
+    <button id="fit" type="button">Fit frame</button>
+    <div id="readout" class="readout" aria-live="polite"></div>
+  </header>
+  <div id="map"></div>
+
+  <script type="module">
+    import { MapView } from '../js/map/mapView.js';
+    import { searchPlaces } from '../js/map/search.js';
+
+    const layout = { cols: 4, rows: 2 };
+    let frame = { lat: 45.95, lon: 10.75, widthKm: 900, heightKm: 450, rotationDeg: 0 };
+    /** Every event the map emitted, for tests and debugging. */
+    window.events = [];
+
+    const regionsIndex = await fetch('../../data/regions.json')
+      .then((r) => (r.ok ? r.json() : { regions: [] }))
+      .catch(() => ({ regions: [] }));
+
+    const mapView = new MapView(document.getElementById('map'), { regionsIndex, dataBaseUrl: '../../data/' });
+    window.mapView = mapView;
+
+    const regionSelect = document.getElementById('region');
+    for (const region of mapView.regions) regionSelect.add(new Option(region.name, region.id));
+    const readout = document.getElementById('readout');
+    const showFrame = () => {
+      const ns = frame.lat >= 0 ? 'N' : 'S';
+      const ew = frame.lon >= 0 ? 'E' : 'W';
+      readout.innerHTML = `${Math.abs(frame.lat).toFixed(3)}°${ns} ${Math.abs(frame.lon).toFixed(3)}°${ew} · ` +
+        `<b>${frame.widthKm.toFixed(1)} × ${frame.heightKm.toFixed(1)} km</b> · ${frame.rotationDeg.toFixed(1)}°`;
+    };
+
+    mapView.addEventListener('framechange', (e) => {
+      window.events.push({ type: 'framechange', ...e.detail });
+      frame = e.detail.frame;
+      mapView.setFrame(frame, layout);
+      showFrame();
+    });
+    mapView.addEventListener('regionselect', (e) => {
+      window.events.push({ type: 'regionselect', ...e.detail });
+      regionSelect.value = e.detail.regionId;
+      mapView.setRegion(e.detail.regionId);
+    });
+    mapView.addEventListener('baselayerchange', (e) => window.events.push({ type: 'baselayerchange', ...e.detail }));
+
+    regionSelect.addEventListener('change', () => mapView.setRegion(regionSelect.value));
+    document.getElementById('fit').addEventListener('click', () => mapView.fitFrame());
+
+    // Place search: move the frame centre to the chosen place.
+    const searchInput = document.getElementById('search');
+    const results = document.getElementById('results');
+    let pending = null;
+    const showMessage = (text) => {
+      results.replaceChildren(Object.assign(document.createElement('li'), { className: 'msg', textContent: text }));
+    };
+    searchInput.addEventListener('keydown', async (e) => {
+      if (e.key === 'Escape') results.replaceChildren();
+      if (e.key !== 'Enter') return;
+      pending?.abort();
+      pending = new AbortController();
+      showMessage('Searching…');
+      try {
+        const places = await searchPlaces(searchInput.value, { signal: pending.signal });
+        if (!places.length) return showMessage('No places found');
+        results.replaceChildren(...places.map((place) => {
+          const li = document.createElement('li');
+          li.setAttribute('role', 'option');
+          li.append(Object.assign(document.createElement('b'), { textContent: place.title }), place.name);
+          li.addEventListener('click', () => {
+            results.replaceChildren();
+            frame = { ...frame, lat: place.lat, lon: place.lon };
+            mapView.setFrame(frame, layout);
+            mapView.fitFrame();
+            showFrame();
+          });
+          return li;
+        }));
+      } catch (err) {
+        if (err.name !== 'AbortError') showMessage(err.message);
+      }
+    });
+
+    const startRegion = mapView.regions.some((r) => r.id === 'alps') ? 'alps' : 'world';
+    regionSelect.value = startRegion;
+    mapView.setRegion(startRegion);
+    mapView.setFrame(frame, layout);
+    mapView.fitFrame();
+    showFrame();
+    window.demoReady = true;
+  </script>
+</body>
+</html>

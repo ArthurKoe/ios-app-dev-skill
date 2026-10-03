@@ -1,0 +1,589 @@
+{
+ "version": 1,
+ "attribution": "Contains modified Copernicus DEM data (GLO-30/GLO-90) \u00a9 DLR e.V. 2010-2014 and \u00a9 Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA; all rights reserved.",
+ "regions": [
+  {
+   "id": "alps",
+   "name": "The Alps",
+   "group": "Europe",
+   "subtitle": "The whole Alpine arc from Nice to Vienna, incl. Jura and Prealps",
+   "bounds": {
+    "south": 43,
+    "west": 4,
+    "north": 49,
+    "east": 17
+   },
+   "elevation": {
+    "min": -10.0,
+    "max": 4810.0
+   },
+   "bestResolutionM": 32.2,
+   "bytes": 242532372,
+   "manifest": "alps/manifest.json",
+   "thumbnail": "alps/thumb.jpg",
+   "presetCount": 24
+  },
+  {
+   "id": "himalaya",
+   "name": "Central Himalaya",
+   "group": "Asia",
+   "subtitle": "Annapurna to Kangchenjunga; 30 m detail around Everest",
+   "bounds": {
+    "south": 27,
+    "west": 83,
+    "north": 30,
+    "east": 89
+   },
+   "elevation": {
+    "min": 72.0,
+    "max": 8735.9
+   },
+   "bestResolutionM": 32.6,
+   "bytes": 50451169,
+   "manifest": "himalaya/manifest.json",
+   "thumbnail": "himalaya/thumb.jpg",
+   "presetCount": 6
+  },
+  {
+   "id": "karakoram",
+   "name": "Karakoram",
+   "group": "Asia",
+   "subtitle": "K2, the Baltoro Glacier and Nanga Parbat",
+   "bounds": {
+    "south": 35,
+    "west": 74,
+    "north": 37,
+    "east": 78
+   },
+   "elevation": {
+    "min": 985.5,
+    "max": 8560.9
+   },
+   "bestResolutionM": 92.8,
+   "bytes": 12966806,
+   "manifest": "karakoram/manifest.json",
+   "thumbnail": "karakoram/thumb.jpg",
+   "presetCount": 4
+  },
+  {
+   "id": "caucasus",
+   "name": "Greater Caucasus",
+   "group": "Asia",
+   "subtitle": "Elbrus, Ushba and Kazbek",
+   "bounds": {
+    "south": 42,
+    "west": 41,
+    "north": 44,
+    "east": 46
+   },
+   "elevation": {
+    "min": -3.5,
+    "max": 5616.3
+   },
+   "bestResolutionM": 101.8,
+   "bytes": 10034826,
+   "manifest": "caucasus/manifest.json",
+   "thumbnail": "caucasus/thumb.jpg",
+   "presetCount": 4
+  },
+  {
+   "id": "fuji",
+   "name": "Mount Fuji",
+   "group": "Asia",
+   "subtitle": "Japan's iconic stratovolcano at 30 m",
+   "bounds": {
+    "south": 35,
+    "west": 138,
+    "north": 36,
+    "east": 139
+   },
+   "elevation": {
+    "min": -0.1,
+    "max": 3767.7
+   },
+   "bestResolutionM": 30.9,
+   "bytes": 7808130,
+   "manifest": "fuji/manifest.json",
+   "thumbnail": "fuji/thumb.jpg",
+   "presetCount": 2
+  },
+  {
+   "id": "pyrenees",
+   "name": "Pyrenees",
+   "group": "Europe",
+   "subtitle": "From the Basque coast to the Mediterranean",
+   "bounds": {
+    "south": 42,
+    "west": -2,
+    "north": 44,
+    "east": 4
+   },
+   "elevation": {
+    "min": -58.4,
+    "max": 3344.0
+   },
+   "bestResolutionM": 101.8,
+   "bytes": 11063376,
+   "manifest": "pyrenees/manifest.json",
+   "thumbnail": "pyrenees/thumb.jpg",
+   "presetCount": 4
+  },
+  {
+   "id": "tatra",
+   "name": "Tatra Mountains",
+   "group": "Europe",
+   "subtitle": "High Tatras on the Slovak-Polish border at 30 m",
+   "bounds": {
+    "south": 49,
+    "west": 19,
+    "north": 50,
+    "east": 21
+   },
+   "elevation": {
+    "min": 186.2,
+    "max": 2601.9
+   },
+   "bestResolutionM": 30.9,
+   "bytes": 11004546,
+   "manifest": "tatra/manifest.json",
+   "thumbnail": "tatra/thumb.jpg",
+   "presetCount": 2
+  },
+  {
+   "id": "corsica",
+   "name": "Corsica",
+   "group": "Europe",
+   "subtitle": "A mountain range rising from the Mediterranean",
+   "bounds": {
+    "south": 41,
+    "west": 8,
+    "north": 43,
+    "east": 10
+   },
+   "elevation": {
+    "min": -2.0,
+    "max": 2646.6
+   },
+   "bestResolutionM": 103.4,
+   "bytes": 1302106,
+   "manifest": "corsica/manifest.json",
+   "thumbnail": "corsica/thumb.jpg",
+   "presetCount": 2
+  },
+  {
+   "id": "norway",
+   "name": "Norwegian Fjords",
+   "group": "Europe",
+   "subtitle": "Jotunheimen, Geirangerfjord and Sognefjord",
+   "bounds": {
+    "south": 61,
+    "west": 5,
+    "north": 63,
+    "east": 9
+   },
+   "elevation": {
+    "min": -15.1,
+    "max": 2445.2
+   },
+   "bestResolutionM": 92.8,
+   "bytes": 5191632,
+   "manifest": "norway/manifest.json",
+   "thumbnail": "norway/thumb.jpg",
+   "presetCount": 3
+  },
+  {
+   "id": "iceland",
+   "name": "Iceland",
+   "group": "Europe",
+   "subtitle": "The whole island with its ice caps",
+   "bounds": {
+    "south": 63,
+    "west": -25,
+    "north": 67,
+    "east": -13
+   },
+   "elevation": {
+    "min": -3.5,
+    "max": 2080.8
+   },
+   "bestResolutionM": 92.8,
+   "bytes": 12691087,
+   "manifest": "iceland/manifest.json",
+   "thumbnail": "iceland/thumb.jpg",
+   "presetCount": 2
+  },
+  {
+   "id": "tenerife",
+   "name": "Tenerife & Teide",
+   "group": "Africa",
+   "subtitle": "Volcanic island in the Atlantic at 30 m",
+   "bounds": {
+    "south": 28,
+    "west": -17,
+    "north": 29,
+    "east": -16
+   },
+   "elevation": {
+    "min": -0.4,
+    "max": 3705.7
+   },
+   "bestResolutionM": 32.6,
+   "bytes": 1539683,
+   "manifest": "tenerife/manifest.json",
+   "thumbnail": "tenerife/thumb.jpg",
+   "presetCount": 2
+  },
+  {
+   "id": "kilimanjaro",
+   "name": "Kilimanjaro",
+   "group": "Africa",
+   "subtitle": "Africa's highest mountain at 30 m",
+   "bounds": {
+    "south": -4,
+    "west": 37,
+    "north": -2,
+    "east": 38
+   },
+   "elevation": {
+    "min": 645.8,
+    "max": 5886.8
+   },
+   "bestResolutionM": 30.9,
+   "bytes": 10747149,
+   "manifest": "kilimanjaro/manifest.json",
+   "thumbnail": "kilimanjaro/thumb.jpg",
+   "presetCount": 2
+  },
+  {
+   "id": "canadian-rockies",
+   "name": "Canadian Rockies",
+   "group": "North America",
+   "subtitle": "Banff, Lake Louise and the Columbia Icefield",
+   "bounds": {
+    "south": 50,
+    "west": -118,
+    "north": 53,
+    "east": -115
+   },
+   "elevation": {
+    "min": 432.5,
+    "max": 3673.1
+   },
+   "bestResolutionM": 92.8,
+   "bytes": 10843244,
+   "manifest": "canadian-rockies/manifest.json",
+   "thumbnail": "canadian-rockies/thumb.jpg",
+   "presetCount": 4
+  },
+  {
+   "id": "cascades",
+   "name": "Cascade Volcanoes",
+   "group": "North America",
+   "subtitle": "Mount Rainier, Mount St. Helens and Mount Adams at 30 m",
+   "bounds": {
+    "south": 46,
+    "west": -123,
+    "north": 47,
+    "east": -121
+   },
+   "elevation": {
+    "min": -0.6,
+    "max": 4413.1
+   },
+   "bestResolutionM": 31.9,
+   "bytes": 12357872,
+   "manifest": "cascades/manifest.json",
+   "thumbnail": "cascades/thumb.jpg",
+   "presetCount": 3
+  },
+  {
+   "id": "sierra-nevada",
+   "name": "Sierra Nevada",
+   "group": "North America",
+   "subtitle": "Yosemite, Mount Whitney and Lake Tahoe; 30 m around Yosemite",
+   "bounds": {
+    "south": 36,
+    "west": -121,
+    "north": 40,
+    "east": -118
+   },
+   "elevation": {
+    "min": 11.0,
+    "max": 4397.6
+   },
+   "bestResolutionM": 30.9,
+   "bytes": 19671586,
+   "manifest": "sierra-nevada/manifest.json",
+   "thumbnail": "sierra-nevada/thumb.jpg",
+   "presetCount": 4
+  },
+  {
+   "id": "grand-canyon",
+   "name": "Grand Canyon",
+   "group": "North America",
+   "subtitle": "The canyon and the Colorado Plateau; 30 m along the main gorge",
+   "bounds": {
+    "south": 35,
+    "west": -114,
+    "north": 37,
+    "east": -111
+   },
+   "elevation": {
+    "min": 339.4,
+    "max": 3828.6
+   },
+   "bestResolutionM": 30.9,
+   "bytes": 16744338,
+   "manifest": "grand-canyon/manifest.json",
+   "thumbnail": "grand-canyon/thumb.jpg",
+   "presetCount": 3
+  },
+  {
+   "id": "denali",
+   "name": "Alaska Range - Denali",
+   "group": "North America",
+   "subtitle": "North America's highest peak",
+   "bounds": {
+    "south": 62,
+    "west": -152,
+    "north": 64,
+    "east": -149
+   },
+   "elevation": {
+    "min": 40.3,
+    "max": 6169.0
+   },
+   "bestResolutionM": 92.8,
+   "bytes": 4206481,
+   "manifest": "denali/manifest.json",
+   "thumbnail": "denali/thumb.jpg",
+   "presetCount": 2
+  },
+  {
+   "id": "hawaii",
+   "name": "Island of Hawai\u02bbi",
+   "group": "Oceania",
+   "subtitle": "Mauna Kea, Mauna Loa and K\u012blauea at 30 m",
+   "bounds": {
+    "south": 18,
+    "west": -157,
+    "north": 21,
+    "east": -154
+   },
+   "elevation": {
+    "min": -5.9,
+    "max": 4204.2
+   },
+   "bestResolutionM": 30.9,
+   "bytes": 8570488,
+   "manifest": "hawaii/manifest.json",
+   "thumbnail": "hawaii/thumb.jpg",
+   "presetCount": 3
+  },
+  {
+   "id": "new-zealand",
+   "name": "Southern Alps (New Zealand)",
+   "group": "Oceania",
+   "subtitle": "Aoraki / Mount Cook, Mount Aspiring and Milford Sound",
+   "bounds": {
+    "south": -45,
+    "west": 167,
+    "north": -42,
+    "east": 172
+   },
+   "elevation": {
+    "min": -57.6,
+    "max": 3639.0
+   },
+   "bestResolutionM": 100.9,
+   "bytes": 7822053,
+   "manifest": "new-zealand/manifest.json",
+   "thumbnail": "new-zealand/thumb.jpg",
+   "presetCount": 4
+  },
+  {
+   "id": "patagonia",
+   "name": "Patagonia",
+   "group": "South America",
+   "subtitle": "Fitz Roy, Cerro Torre and Torres del Paine",
+   "bounds": {
+    "south": -52,
+    "west": -74,
+    "north": -48,
+    "east": -72
+   },
+   "elevation": {
+    "min": -7.4,
+    "max": 3574.2
+   },
+   "bestResolutionM": 92.8,
+   "bytes": 7556667,
+   "manifest": "patagonia/manifest.json",
+   "thumbnail": "patagonia/thumb.jpg",
+   "presetCount": 3
+  },
+  {
+   "id": "aconcagua",
+   "name": "Aconcagua (Andes)",
+   "group": "South America",
+   "subtitle": "The highest peak outside Asia",
+   "bounds": {
+    "south": -34,
+    "west": -71,
+    "north": -32,
+    "east": -69
+   },
+   "elevation": {
+    "min": 187.7,
+    "max": 6904.9
+   },
+   "bestResolutionM": 93.4,
+   "bytes": 5325366,
+   "manifest": "aconcagua/manifest.json",
+   "thumbnail": "aconcagua/thumb.jpg",
+   "presetCount": 2
+  }
+ ],
+ "worldPresets": [
+  {
+   "name": "Mount Etna",
+   "lat": 37.75,
+   "lon": 14.99,
+   "widthKm": 40,
+   "heightKm": 35
+  },
+  {
+   "name": "Vesuvius & Bay of Naples",
+   "lat": 40.75,
+   "lon": 14.35,
+   "widthKm": 50,
+   "heightKm": 40
+  },
+  {
+   "name": "Mount Olympus (Greece)",
+   "lat": 40.085,
+   "lon": 22.358,
+   "widthKm": 35,
+   "heightKm": 30
+  },
+  {
+   "name": "Scottish Highlands - Glencoe & Ben Nevis",
+   "lat": 56.75,
+   "lon": -5.0,
+   "widthKm": 50,
+   "heightKm": 40
+  },
+  {
+   "name": "Lofoten",
+   "lat": 68.2,
+   "lon": 14.3,
+   "widthKm": 90,
+   "heightKm": 50
+  },
+  {
+   "name": "Atlas - Toubkal",
+   "lat": 31.06,
+   "lon": -7.92,
+   "widthKm": 40,
+   "heightKm": 30
+  },
+  {
+   "name": "Drakensberg",
+   "lat": -28.75,
+   "lon": 29.0,
+   "widthKm": 60,
+   "heightKm": 45
+  },
+  {
+   "name": "Table Mountain & Cape Peninsula",
+   "lat": -34.15,
+   "lon": 18.43,
+   "widthKm": 45,
+   "heightKm": 60
+  },
+  {
+   "name": "Mount Kenya",
+   "lat": -0.15,
+   "lon": 37.31,
+   "widthKm": 40,
+   "heightKm": 35
+  },
+  {
+   "name": "Mount Ararat",
+   "lat": 39.7,
+   "lon": 44.3,
+   "widthKm": 50,
+   "heightKm": 40
+  },
+  {
+   "name": "Mount Kailash",
+   "lat": 31.067,
+   "lon": 81.312,
+   "widthKm": 40,
+   "heightKm": 30
+  },
+  {
+   "name": "Huangshan (Yellow Mountains)",
+   "lat": 30.13,
+   "lon": 118.17,
+   "widthKm": 25,
+   "heightKm": 20
+  },
+  {
+   "name": "Yellowstone & Grand Teton",
+   "lat": 44.2,
+   "lon": -110.7,
+   "widthKm": 150,
+   "heightKm": 160
+  },
+  {
+   "name": "Rocky Mountain National Park",
+   "lat": 40.35,
+   "lon": -105.68,
+   "widthKm": 45,
+   "heightKm": 40
+  },
+  {
+   "name": "Zion National Park",
+   "lat": 37.25,
+   "lon": -112.95,
+   "widthKm": 30,
+   "heightKm": 25
+  },
+  {
+   "name": "Crater Lake",
+   "lat": 42.94,
+   "lon": -122.1,
+   "widthKm": 25,
+   "heightKm": 20
+  },
+  {
+   "name": "Mount Hood",
+   "lat": 45.37,
+   "lon": -121.7,
+   "widthKm": 30,
+   "heightKm": 25
+  },
+  {
+   "name": "Machu Picchu & Salkantay",
+   "lat": -13.25,
+   "lon": -72.5,
+   "widthKm": 45,
+   "heightKm": 35
+  },
+  {
+   "name": "Chimborazo",
+   "lat": -1.47,
+   "lon": -78.82,
+   "widthKm": 35,
+   "heightKm": 30
+  },
+  {
+   "name": "Mount Cook to the sea (Westland)",
+   "lat": -43.5,
+   "lon": 170.0,
+   "widthKm": 80,
+   "heightKm": 60
+  }
+ ]
+}

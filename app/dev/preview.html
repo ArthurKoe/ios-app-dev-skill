@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Relief Preview Lab</title>
+  <link rel="icon" href="data:,">
+  <script type="importmap">
+    {"imports":{"three":"../vendor/three/three.module.js","three/addons/":"../vendor/three/addons/"}}
+  </script>
+  <style>
+    :root {
+      --panel: rgba(250, 249, 246, 0.9);
+      --ink: #1f1e1c;
+      --muted: #6b6760;
+      --line: rgba(31, 30, 28, 0.12);
+      --accent: #2f5d50;
+      --accent-ink: #ffffff;
+      --bg: #d9d5ce;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --panel: rgba(28, 28, 30, 0.88); --ink: #f2f0ec; --muted: #a8a49c; --line: rgba(255, 255, 255, 0.12);
+        --accent: #7fc4ad; --accent-ink: #10201b; --bg: #2a2927; color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --panel: rgba(28, 28, 30, 0.88); --ink: #f2f0ec; --muted: #a8a49c; --line: rgba(255, 255, 255, 0.12);
+      --accent: #7fc4ad; --accent-ink: #10201b; --bg: #2a2927; color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+      font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+    #view { position: fixed; top: 0; right: 0; bottom: 0; left: 372px; }
+    #panel { position: fixed; top: 16px; left: 16px; width: 340px;
+      max-height: calc(100vh - 32px); overflow: auto; padding: 14px 14px 10px; border-radius: 14px;
+      background: var(--panel); backdrop-filter: blur(10px); border: 1px solid var(--line);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12); }
+    h1 { margin: 0 0 2px; font-size: 15px; font-weight: 650; letter-spacing: 0.01em; }
+    .sub { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+    fieldset { border: 0; margin: 0 0 10px; padding: 0; }
+    legend { padding: 0; margin-bottom: 5px; color: var(--muted); font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em; }
+    .row { display: flex; flex-wrap: wrap; gap: 5px; }
+    button { appearance: none; border: 1px solid var(--line); background: transparent; color: var(--ink);
+      font: inherit; padding: 5px 9px; border-radius: 999px; cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+    button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    label.color { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 4px;
+      border: 1px solid var(--line); border-radius: 999px; cursor: pointer; }
+    input[type="color"] { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+    #status { margin-top: 6px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+    #shot { display: none; margin-top: 8px; width: 100%; border-radius: 8px; border: 1px solid var(--line); }
+    @media (max-width: 700px) {
+      #view { left: 0; bottom: 46vh; }
+      #panel { top: auto; bottom: 0; left: 0; width: 100%; max-height: 46vh; border-radius: 14px 14px 0 0; padding: 12px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="view"></div>
+  <aside id="panel">
+    <h1>Relief preview lab</h1>
+    <p class="sub">Synthetic fractal range, 3 × 2 tiles. Drag to orbit, scroll to zoom, double-click to reset.</p>
+    <fieldset><legend>Art style</legend><div class="row" data-group="style"></div></fieldset>
+    <fieldset><legend>Filaments</legend><div class="row" data-group="palette"></div></fieldset>
+    <fieldset><legend>Lighting</legend><div class="row" data-group="lighting"></div></fieldset>
+    <fieldset><legend>Display</legend><div class="row" data-group="toggles"></div></fieldset>
+    <fieldset>
+      <legend>Wall</legend>
+      <div class="row">
+        <label class="color"><input id="wallColor" type="color" value="#ece8e1"> Wall colour</label>
+        <button id="reset" type="button">Reset camera</button>
+        <button id="screenshot" type="button">Screenshot</button>
+      </div>
+      <img id="shot" alt="Screenshot of the preview">
+    </fieldset>
+    <div id="status">Building tiles…</div>
+  </aside>
+
+  <script type="module">
+    import { Preview3D } from '../js/preview/preview3d.js';
+
+    // ---------------------------------------------------------------- synthetic terrain
+    const params = new URLSearchParams(location.search);
+    const RES_MM = Math.max(0.5, Number(params.get('res')) || 1.25);
+    const COLS = 3, ROWS = 2, TILE = 160, BASE = 3, RELIEF = 24, LAYER = 0.2;
+    const ART_W = COLS * TILE, ART_H = ROWS * TILE;
+
+    function hash2(x, y, seed) {
+      let h = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(seed, 982451653);
+      h = Math.imul(h ^ (h >>> 13), 1274126177);
+      return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+    }
+    /** 2-D gradient (Perlin-style) noise in about [-0.7, 0.7]. */
+    function gradientNoise(x, y, seed) {
+      const xi = Math.floor(x), yi = Math.floor(y);
+      const xf = x - xi, yf = y - yi;
+      const u = xf * xf * xf * (xf * (xf * 6 - 15) + 10), v = yf * yf * yf * (yf * (yf * 6 - 15) + 10);
+      const g = (ix, iy, dx, dy) => {
+        const a = hash2(ix, iy, seed) * Math.PI * 2;
+        return Math.cos(a) * dx + Math.sin(a) * dy;
+      };
+      const n00 = g(xi, yi, xf, yf), n10 = g(xi + 1, yi, xf - 1, yf);
+      const n01 = g(xi, yi + 1, xf, yf - 1), n11 = g(xi + 1, yi + 1, xf - 1, yf - 1);
+      return n00 + (n10 - n00) * u + (n01 - n00) * v + (n00 - n10 - n01 + n11) * u * v;
+    }
+    /** Ridged multifractal with domain warping: sharp alpine crests, smooth valleys. */
+    function elevation(u, v) {
+      const wx = u * 2.6 + 0.35 * gradientNoise(u * 1.7, v * 1.7, 7);
+      const wy = v * 2.6 + 0.35 * gradientNoise(u * 1.7 + 5.2, v * 1.7 + 1.3, 11);
+      let sum = 0, amp = 0.6, freq = 1, weight = 1;
+      for (let o = 0; o < 8; o++) {
+        let n = 1 - Math.abs(gradientNoise(wx * freq, wy * freq, 31 + o) * 1.4);
+        n = n * n * weight;
+        weight = Math.min(1, Math.max(0, n * 2));
+        sum += n * amp;
+        amp *= 0.48;
+        freq *= 2.1;
+      }
+      const massif = Math.exp(-(((v - 0.42) / 0.55) ** 2)) * (0.75 + 0.25 * Math.sin(u * 2.2 + 0.4));
+      const valley = Math.exp(-(((u - 0.95) / 0.2) ** 2) - (((v - 0.78) / 0.12) ** 2));
+      return Math.max(0, sum * massif - valley * 0.45);
+    }
+
+    function buildArtworkGrid(res) {
+      const spx = Math.max(2, Math.round(TILE / res)), spy = spx;
+      const nx = COLS * spx + 1, ny = ROWS * spy + 1;
+      const e = new Float32Array(nx * ny);
+      let max = 0;
+      for (let r = 0; r < ny; r++) {
+        for (let c = 0; c < nx; c++) {
+          const h = elevation(c / (nx - 1) * (ART_W / ART_H), r / (ny - 1));
+          e[r * nx + c] = h;
+          if (h > max) max = h;
+        }
+      }
+      for (let i = 0; i < e.length; i++) e[i] /= max;
+      const lake = 0.1;
+      const water = new Uint8Array(nx * ny);
+      for (let i = 0; i < e.length; i++) if (e[i] <= lake) { e[i] = lake; water[i] = 1; }
+      return { nx, ny, spx, spy, e, water, dx: ART_W / (nx - 1), dy: ART_H / (ny - 1) };
+    }
+
+    /** Top surface heights (mm) of the whole artwork for an art style. */
+    function styleHeights(grid, style) {
+      const { nx, ny, e, water, dx, dy } = grid;
+      const z = new Float32Array(nx * ny);
+      if (style === 'lithophane') {
+        const sun = [-0.58, 0.58, 0.57];   // from the north-west, 35° high
+        for (let r = 0; r < ny; r++) {
+          for (let c = 0; c < nx; c++) {
+            const i = r * nx + c;
+            const gx = (e[r * nx + Math.min(nx - 1, c + 1)] - e[r * nx + Math.max(0, c - 1)]) * RELIEF * 3 / (2 * dx);
+            const gy = (e[Math.max(0, r - 1) * nx + c] - e[Math.min(ny - 1, r + 1) * nx + c]) * RELIEF * 3 / (2 * dy);
+            const len = Math.hypot(gx, gy, 1);
+            const shade = Math.max(0, (-gx * sun[0] - gy * sun[1] + sun[2]) / len);
+            z[i] = 0.8 + (1 - Math.min(1, shade * 1.25)) * 2.4;
+          }
+        }
+        return z;
+      }
+      const steps = 14;
+      for (let i = 0; i < z.length; i++) {
+        let h = e[i];
+        if (style === 'terraced') h = Math.round(h * steps) / steps;
+        z[i] = BASE + h * RELIEF - (water[i] ? 0.6 : 0);
+      }
+      return z;
+    }
+
+    /**
+     * Closed solid for one tile: top grid, walls zipped to a bottom ring, bottom fan.
+     * Tile-local mm, z up, CCW outward.
+     */
+    function buildTileSolid(z, water, gridNx, r0, c0, n, m, w, h) {
+      const top = n * m;
+      const ring = [];
+      for (let c = 0; c < n - 1; c++) ring.push((m - 1) * n + c);           // bottom edge →
+      for (let r = m - 1; r > 0; r--) ring.push(r * n + n - 1);             // right edge ↑
+      for (let c = n - 1; c > 0; c--) ring.push(c);                         // top edge ←
+      for (let r = 0; r < m - 1; r++) ring.push(r * n);                     // left edge ↓
+      const nv = top + ring.length + 1;
+      const positions = new Float32Array(nv * 3);
+      const flags = new Uint8Array(nv);
+      const dx = w / (n - 1), dy = h / (m - 1);
+      for (let r = 0; r < m; r++) {
+        for (let c = 0; c < n; c++) {
+          const v = r * n + c, g = (r0 + r) * gridNx + c0 + c;
+          positions.set([c * dx, h - r * dy, z[g]], v * 3);
+          flags[v] = water[g];
+        }
+      }
+      ring.forEach((v, i) => positions.set([positions[v * 3], positions[v * 3 + 1], 0], (top + i) * 3));
+      const centre = nv - 1;
+      positions.set([w / 2, h / 2, 0], centre * 3);
+      const tris = [];
+      for (let r = 0; r < m - 1; r++) {
+        for (let c = 0; c < n - 1; c++) {
+          const a = r * n + c, b = a + 1, cc = a + n, d = cc + 1;
+          tris.push(cc, d, b, cc, b, a);
+        }
+      }
+      for (let i = 0; i < ring.length; i++) {
+        const j = (i + 1) % ring.length;
+        const ti = ring[i], tj = ring[j], bi = top + i, bj = top + j;
+        tris.push(bi, bj, tj, bi, tj, ti, centre, bj, bi);
+      }
+      return { positions, indices: Uint32Array.from(tris), water: flags };
+    }
+
+    function buildTiles(grid, style) {
+      const z = styleHeights(grid, style);
+      const water = style === 'lithophane' ? new Uint8Array(grid.water.length) : grid.water;
+      const tiles = [];
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+          const mesh = buildTileSolid(z, water, grid.nx, row * grid.spy, col * grid.spx, grid.spx + 1, grid.spy + 1, TILE, TILE);
+          tiles.push({
+            label: String.fromCharCode(65 + row) + (col + 1), row, col,
+            x0: col * TILE, y0: ART_H - (row + 1) * TILE, widthMm: TILE, heightMm: TILE, mesh,
+          });
+        }
+      }
+      return { tiles, art: { artW: ART_W, artH: ART_H, maxZ: z.reduce((a, b) => Math.max(a, b), 0) } };
+    }
+
+    // ---------------------------------------------------------------- filament palettes
+    const snap = (zMm) => LAYER + Math.max(0, Math.round((zMm - LAYER) / LAYER)) * LAYER;
+    function bandTable(spec) {
+      return spec.map(([zFrom, color, finish, name], i) => {
+        const from = i === 0 ? 0 : snap(BASE + zFrom * RELIEF);
+        const next = spec[i + 1] ? snap(BASE + spec[i + 1][0] * RELIEF) : Infinity;
+        return {
+          filamentId: name.toLowerCase().replace(/\s+/g, '-'), zFrom: from, zTo: next,
+          layerFrom: i === 0 ? 1 : Math.round((from - LAYER) / LAYER) + 2, elevFromM: null, color, finish, name,
+        };
+      });
+    }
+    const PALETTES = {
+      alpine: { name: 'Alpine', bands: [[0, '#3f6b3a', 'matte', 'Forest green'], [0.3, '#8b8a5a', 'matte', 'Olive'], [0.55, '#8f8c87', 'matte', 'Stone grey'], [0.78, '#f4f4f1', 'matte', 'Snow white']] },
+      silk: { name: 'Silk', bands: [[0, '#2b4c7e', 'silk', 'Silk blue'], [0.35, '#b07d3a', 'silk', 'Silk bronze'], [0.62, '#d9d2c3', 'silk', 'Silk champagne'], [0.82, '#ffffff', 'silk', 'Silk white']] },
+      metallic: { name: 'Metallic', bands: [[0, '#8c6239', 'metallic', 'Bronze'], [0.45, '#b4b4b8', 'metallic', 'Silver'], [0.75, '#d4af37', 'metallic', 'Gold']] },
+      marble: { name: 'Marble', bands: [[0, '#d8d6d0', 'marble', 'Marble']] },
+      wood: { name: 'Wood', bands: [[0, '#a77b4f', 'wood', 'Wood']] },
+      glitter: { name: 'Glitter', bands: [[0, '#1d1f2b', 'glitter', 'Galaxy black'], [0.6, '#c8c9cf', 'glitter', 'Sparkle silver']] },
+      translucent: { name: 'Translucent', bands: [[0, '#5d9cc4', 'translucent', 'Translucent blue'], [0.6, '#e8f2f6', 'translucent', 'Clear']] },
+    };
+    const WHITE = bandTable([[0, '#f4f4f1', 'matte', 'Snow white']]);
+
+    // ---------------------------------------------------------------- UI + preview
+    const state = {
+      style: 'classic', palette: 'alpine', lighting: 'gallery',
+      wallMode: true, exploded: false, seams: true, labels: true, layerLines: true, highlightWater: false,
+    };
+    const STYLES = { classic: 'Classic', terraced: 'Terraced', lowpoly: 'Low-poly', lithophane: 'Lithophane' };
+    const LIGHTS = { gallery: 'Gallery', morning: 'Morning', evening: 'Evening', overcast: 'Overcast', raking: 'Raking', backlit: 'Backlit' };
+    const TOGGLES = { wallMode: 'On wall', exploded: 'Exploded', seams: 'Seams', labels: 'Labels', layerLines: 'Layer lines', highlightWater: 'Water' };
+
+    const preview = new Preview3D(document.getElementById('view'));
+    window.preview = preview;
+    const grid = buildArtworkGrid(RES_MM);
+    const coarse = buildArtworkGrid(Math.max(RES_MM, 4));
+    const status = document.getElementById('status');
+
+    function appearance() {
+      const litho = state.style === 'lithophane';
+      return {
+        mode: litho ? 'lithophane' : 'bands',
+        bands: litho ? WHITE : bandTable(PALETTES[state.palette].bands),
+        layerHeightMm: LAYER, firstLayerMm: LAYER, layerLines: state.layerLines,
+        flatShading: state.style === 'lowpoly', highlightWater: state.highlightWater,
+      };
+    }
+
+    async function rebuild() {
+      const t0 = performance.now();
+      const { tiles, art } = buildTiles(state.style === 'lowpoly' ? coarse : grid, state.style);
+      await preview.setTiles(tiles, art);
+      const info = preview.info;
+      status.textContent = `${info.tiles} tiles · ${(info.triangles / 1000).toFixed(0)}k triangles · ${(performance.now() - t0).toFixed(0)} ms`;
+    }
+
+    function apply() {
+      preview.setAppearance(appearance());
+      preview.setView({
+        lighting: state.lighting, wallMode: state.wallMode, exploded: state.exploded, seams: state.seams,
+        labels: state.labels, wallColor: document.getElementById('wallColor').value,
+      });
+      syncButtons();
+    }
+
+    function button(group, value, label) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.dataset.group = group;
+      b.dataset.value = value;
+      return b;
+    }
+    function syncButtons() {
+      for (const b of document.querySelectorAll('button[data-group]')) {
+        const { group, value } = b.dataset;
+        const on = group === 'toggles' ? !!state[value] : state[group] === value;
+        b.setAttribute('aria-pressed', String(on));
+      }
+    }
+    const fill = (group, entries) => {
+      const row = document.querySelector(`.row[data-group="${group}"]`);
+      for (const [value, label] of entries) row.append(button(group, value, label));
+    };
+    fill('style', Object.entries(STYLES));
+    fill('palette', Object.entries(PALETTES).map(([id, p]) => [id, p.name]));
+    fill('lighting', Object.entries(LIGHTS));
+    fill('toggles', Object.entries(TOGGLES));
+
+    document.getElementById('panel').addEventListener('click', async (event) => {
+      const b = event.target.closest('button[data-group]');
+      if (!b) return;
+      const { group, value } = b.dataset;
+      const previousStyle = state.style;
+      if (group === 'toggles') state[value] = !state[value];
+      else state[group] = value;
+      if (group === 'palette' && state.style === 'lithophane') state.style = 'classic';
+      apply();
+      if (state.style !== previousStyle) await rebuild();
+    });
+    document.getElementById('wallColor').addEventListener('input', apply);
+    document.getElementById('reset').addEventListener('click', () => preview.resetCamera());
+    document.getElementById('screenshot').addEventListener('click', async () => {
+      const img = document.getElementById('shot');
+      img.src = await preview.screenshot({ width: 1600, height: 1000 });
+      img.style.display = 'block';
+    });
+
+    window.demo = {
+      state,
+      ready: (async () => {
+        apply();
+        await rebuild();
+        await preview.whenRendered();
+        document.body.dataset.ready = 'true';
+      })(),
+    };
+  </script>
+</body>
+</html>
