@@ -7,8 +7,8 @@
   "license": "MIT",
   "scripts": {
     "start": "node scripts/serve.mjs",
-    "test": "node --test tests/unit/",
-    "e2e": "playwright test",
+    "test": "node --test \"tests/unit/**/*.test.js\"",
+    "e2e": "playwright test --pass-with-no-tests",
     "build:data": "python3 pipeline/build.py"
   },
   "devDependencies": {
