@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Relief Studio – 3D-printable relief maps of the Alps and beyond</title>
+  <meta name="description" content="Design a tiled, 3D-printable relief map of the Alps or any mountain range: pick the area, split it into printer-sized tiles, preview it in 3D with your filament colours and art style, estimate filament and export watertight STL files.">
+  <meta name="theme-color" content="#1f5f7a">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f5f7a'/%3E%3Cpath d='M3.5 25 12.5 9.5l4.6 7.6L20.6 12 28.5 25Z' fill='%23f4f1ea'/%3E%3Cpath d='m10.2 13.4 2.3 2 2.1-1.8' fill='none' stroke='%231f5f7a' stroke-width='1.4' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./app/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="./app/css/map.css">
+  <link rel="stylesheet" href="./app/css/app.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./app/vendor/three/three.module.js",
+        "three/addons/": "./app/vendor/three/addons/"
+      }
+    }
+  </script>
+  <script type="module" src="./app/js/main.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#sidebar">Skip to the settings</a>
+  <header id="app-header" class="app-header">
+    <div class="brand"><span class="brand-name">Relief Studio</span></div>
+  </header>
+
+  <div class="app-body">
+    <aside id="sidebar" class="sidebar" aria-label="Settings" tabindex="-1">
+      <div class="sidebar-loading" aria-hidden="true">
+        <span class="spinner"></span> Loading Relief Studio…
+      </div>
+    </aside>
+
+    <main id="workspace" class="workspace" data-view="split" aria-label="Map and 3D preview">
+      <div class="workspace-bar">
+        <div id="view-modes"></div>
+        <p class="workspace-hint">Drag the frame on the map · orbit the 3D view with the mouse or touch</p>
+      </div>
+      <div class="views">
+        <section class="pane pane-map" aria-label="Map">
+          <div id="map" class="map"></div>
+        </section>
+        <section class="pane pane-3d" aria-label="3D preview">
+          <div id="preview3d" class="preview3d"></div>
+          <div id="view-toolbar" class="view-toolbar"></div>
+          <div id="preview-status" class="preview-status" hidden></div>
+        </section>
+      </div>
+      <div id="progress-bar" class="progress-bar" hidden></div>
+    </main>
+  </div>
+
+  <footer id="status-bar" class="status-bar" aria-label="Summary"></footer>
+  <div id="toasts" class="toasts"></div>
+
+  <noscript>
+    <div class="fatal">
+      <h1>Relief Studio needs JavaScript</h1>
+      <p>Please enable JavaScript to design and export your relief map.</p>
+    </div>
+  </noscript>
+</body>
+</html>
