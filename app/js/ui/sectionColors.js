@@ -42,6 +42,7 @@ export function createColorsSection(ctx) {
   });
   const singleField = h('div', { class: 'field' }, h('div', { class: 'field-row' }, h('span', { class: 'field-label' }, 'Filament'), single.el));
   const bands = createBandEditor({ store });
+  const waterHint = waterThemeHint(ctx);
   const bandHint = hintBlock('Each colour starts at a fixed layer. Your slicer pauses there so you can swap the filament – the layers are the same for every tile, so one colour-change list works for the whole artwork.');
 
   const layer = rangeField({
@@ -58,7 +59,7 @@ export function createColorsSection(ctx) {
 
   const el = h('div', { class: 'section-colors' },
     material.el, materialNote, mode.el, lithoNote.el,
-    h('h3', { class: 'subhead' }, 'Theme'), themes.el,
+    h('h3', { class: 'subhead' }, 'Theme'), themes.el, waterHint.el,
     singleField, bands.el, bandHint.el,
     h('h3', { class: 'subhead' }, 'Layers'), layer.el, first.el,
     h('div', { class: 'button-row' }, libraryBtn));
@@ -72,6 +73,7 @@ export function createColorsSection(ctx) {
       mode.sync(p, rt);
       lithoNote.sync(p, rt);
       themes.sync(p, rt);
+      waterHint.sync(p, rt);
       const isSingle = p.colors.mode === 'single' || !bandsSupported(p);
       singleField.hidden = !isSingle;
       if (isSingle) single.update(p, p.colors.singleFilamentId);
@@ -112,6 +114,36 @@ function themeSwatches({ store, runtime }) {
         b.btn.setAttribute('aria-pressed', String(on));
         b.btn.classList.toggle('is-selected', on);
       }
+    },
+  };
+}
+
+/** Themes whose lowest band is a water colour. */
+const WATER_THEMES = new Set(['island', 'nordic-fjord']);
+/** Share of sea / lake samples from which the water-theme suggestion appears. */
+const WATER_HINT_SHARE = 0.15;
+
+/**
+ * Suggests a theme with blue water when much of the frame is sea or lakes (otherwise the sea is
+ * printed in the lowest land colour).
+ * @param {{store:object, runtime:object}} ctx
+ */
+function waterThemeHint({ store, runtime }) {
+  const text = h('span');
+  const button = h('button', {
+    type: 'button', class: 'btn btn-small btn-ghost', 'data-testid': 'water-theme',
+    onClick: () => selectTheme(store, runtime, THEMES.find((t) => t.id === 'island')),
+  }, 'Use the Island theme');
+  const el = h('div', { class: 'hint-block hint-info water-hint', hidden: true },
+    icon('water', { size: 16 }), h('div', null, text, ' ', button));
+  return {
+    el,
+    sync(p, rt) {
+      const share = rt.preview?.stats?.waterFraction ?? 0;
+      const show = share >= WATER_HINT_SHARE && p.colors.mode === 'bands' && getArtStyle(p.style.id).supportsBands
+        && !WATER_THEMES.has(p.colors.themeId);
+      el.hidden = !show;
+      if (show) text.textContent = `About ${Math.round(share * 100)} % of this frame is sea or lakes, printed in the lowest colour. Island and Nordic Fjord print water in blue.`;
     },
   };
 }

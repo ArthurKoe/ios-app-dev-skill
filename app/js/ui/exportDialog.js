@@ -101,6 +101,7 @@ export function createExportDialog({ onCancel }) {
     },
     done({ blob, filename }, again) {
       finish('done');
+      dialog.setTitle(`Exported ${order.length} tile${order.length === 1 ? '' : 's'}`);
       setBar(1);
       message.textContent = `Done – ${filename} (${formatBytes(blob.size)}) has been downloaded.`;
       againBtn.hidden = false;
@@ -108,10 +109,12 @@ export function createExportDialog({ onCancel }) {
     },
     fail(text) {
       finish('error');
+      dialog.setTitle('Export failed');
       message.textContent = `Export failed: ${text}`;
     },
     cancelled() {
       finish('cancelled');
+      dialog.setTitle('Export cancelled');
       message.textContent = 'Export cancelled.';
       for (const [label, r] of rows) if (r.row.dataset.state !== 'done') setTile(label, 'cancelled', 'cancelled');
     },

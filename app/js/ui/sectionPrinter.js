@@ -118,7 +118,8 @@ function warningList() {
     sync(p, rt) {
       const list = rt.layout.warnings ?? [];
       const tall = rt.zmap && rt.zmap.maxZMm > p.printer.maxZ
-        ? [`The relief is ${formatNumber(rt.zmap.maxZMm, 1)} mm tall – more than the printer's ${formatNumber(p.printer.maxZ, 0)} mm height.`]
+        ? [`The relief is ${formatNumber(rt.zmap.maxZMm, 1)} mm tall – more than the printer's ${formatNumber(p.printer.maxZ, 0)} mm build height. `
+          + `Lower the ${p.relief.autoExaggeration ? 'target relief' : 'exaggeration'} under Relief.`]
         : [];
       const all = [...list, ...tall];
       const next = all.join('|');

@@ -182,7 +182,7 @@ function rank(groupName) {
 const PRESETS_COLLAPSED = 8;
 
 function presetList({ actions, runtime }) {
-  const el = h('div', { class: 'preset-list', role: 'list' });
+  const el = h('div', { class: 'preset-list', role: 'group', 'aria-label': 'Presets' });
   let key = '';
   let regionId = null;
   let expanded = false;
@@ -202,7 +202,7 @@ function presetList({ actions, runtime }) {
     }
     const shown = expanded ? list : list.slice(0, PRESETS_COLLAPSED);
     replaceChildren(el, shown.map((preset) => h('button', {
-      type: 'button', class: 'chip', role: 'listitem', title: `${formatKm(preset.widthKm)} × ${formatKm(preset.heightKm)}`,
+      type: 'button', class: 'chip', title: `${preset.name} – ${formatKm(preset.widthKm)} × ${formatKm(preset.heightKm)}`,
       onClick: () => actions.applyPreset(preset),
     }, preset.name)),
     list.length > PRESETS_COLLAPSED ? h('button', {

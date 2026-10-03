@@ -4,7 +4,7 @@
 // Out: {id, type:'progress', stage, fraction, message}
 //      {id, type:'file', name, buffer, label, index, total, triangles}     (export only, one per tile)
 //      {id, type:'result', result}
-//      {id, type:'error', message, name}
+//      {id, type:'error', message, name, stack}
 //
 // A new 'preview' supersedes (aborts) the running preview, a new 'export' the running export
 // ("latest wins"). 'cancel' aborts options.jobId, or every running job when absent.
@@ -42,8 +42,11 @@ self.onmessage = (event) => {
     })
     .catch((err) => {
       const aborted = controller.signal.aborted || err?.name === 'AbortError';
-      post({ id: msg.id, type: 'error', name: aborted ? 'AbortError' : err?.name ?? 'Error', message: aborted ? 'Cancelled' : errorMessage(err) });
-      if (!aborted) console.error('[engine]', err);
+      // The main thread reports (and logs) failures; the stack travels along for debugging.
+      post({
+        id: msg.id, type: 'error', name: aborted ? 'AbortError' : err?.name ?? 'Error',
+        message: aborted ? 'Cancelled' : errorMessage(err), stack: aborted ? undefined : err?.stack,
+      });
     })
     .finally(() => running.delete(msg.id));
 };
@@ -93,7 +96,7 @@ const HANDLERS = {
       await yieldToEvents(signal);
       const mesh = meshTile(tile, project, { quality: 'export', toleranceMm: artwork.field.meshToleranceMm });
       const name = tileFileName(prefix, tile.label, format);
-      const buffer = encodeTileFile(mesh, { format, name: `${prefix} ${tile.label}`, title: `${project.name} – tile ${tile.label}`, bands });
+      const buffer = encodeTileFile(mesh, { format, name: `${prefix} ${tile.label}`, title: `${project.name} – tile ${tile.label}`, bands, layerHeightMm: project.colors?.layerHeightMm });
       signal.throwIfAborted();
       post({ id: msg.id, type: 'file', name, buffer, label: tile.label, index: k, total: indices.length, triangles: mesh.indices.length / 3 }, [buffer]);
       files.push({ name, label: tile.label, bytes: buffer.byteLength, triangles: mesh.indices.length / 3 });

@@ -86,10 +86,10 @@ export const DEFAULT_PROJECT = {
   regionId: 'alps',               // a region id from data/regions.json, or 'world'
   source: 'auto',                 // 'auto' | 'local' | 'live'
   frame: { lat: 45.95, lon: 10.75, widthKm: 900, heightKm: 450, rotationDeg: 0 },
-  printer: { presetId: 'bambu-x1', bedW: 256, bedH: 256, maxZ: 250, nozzleMm: 0.4 },
+  printer: { presetId: 'bambu-x1', bedW: 256, bedH: 256, maxZ: 256, nozzleMm: 0.4 },   // = the 'bambu-x1' preset
   layout: { cols: 4, rows: 2, tileW: 246, tileH: 246 },
   relief: {
-    exaggeration: 4, autoExaggeration: false, targetReliefMm: 25,
+    exaggeration: 4, autoExaggeration: true, targetReliefMm: 30,   // auto: exaggeration fits the relief to ~30 mm
     baseMm: 3,
     floor: { mode: 'auto', elevationM: 0 },     // 'auto' | 'sea' | 'fixed'
     smoothingMm: 0.4,                            // gaussian sigma in printed mm (sigma_samples = smoothingMm/dx), 0 = off
@@ -127,8 +127,15 @@ export const DEFAULT_PROJECT = {
 
 `state/store.js` exports `createStore(initialProject)` → `{ get(), set(patchFn|partial, {source}), subscribe(fn) }`
 and `normalizeProject(p, ctx)` which enforces invariants (frame aspect = artwork aspect,
-clamps, base ≥ magnet depth + 0.8, bands sorted, …). `state/persistence.js` handles
+clamps, base ≥ magnet depth + 0.8, bands sorted, style params limited to the style's own
+parameters and ranges from `catalog/artStyles.js`, …). `state/persistence.js` handles
 localStorage autosave, JSON file import/export and the `#p=` URL hash (deflate + base64url via fflate).
+
+`state/project.js` also has the framing helpers used for presets, regions and place search:
+`frameContainingRect(rect, aspect)`, `nudgeFrameInside(frame, keep, bounds)` and
+`frameForRect(rect, aspect, bounds)` – the preset widened to the artwork aspect and kept on the
+region's stored data, cropped (never below the preset's shorter side) when widening would leave it.
+Choosing a region opens its widest preset.
 
 ## Module map & contracts
 
@@ -232,7 +239,7 @@ Art styles (ids and params; defaults live in `catalog/artStyles.js`):
 | `classic` | smooth shaded relief | – |
 | `terraced` | stepped contour terraces (like layered wood art) | `stepMode` 'count'/'meters', `count` 16, `stepM` 200, `snapToLayers` true |
 | `lowpoly` | crystalline triangles | `facetMm` 1.2 (used as mesh tolerance, also for preview) |
-| `ridgelines` | thin parallel ribs following the terrain profile ("Unknown Pleasures") | `spacingMm` 5, `thicknessMm` 1.2, `direction` 'horizontal'/'vertical', `staggerMm` 0 |
+| `ridgelines` | thin parallel ribs following the terrain profile ("Unknown Pleasures") | `spacingMm` 5, `thicknessMm` 1.2, `direction` 'horizontal'/'vertical', `staggerMm` 0 (UI range 0–1 mm: rib k is lifted k·stagger) |
 | `hex` | hexagonal (or square) columns | `shape` 'hex'/'square', `cellMm` 8, `gapMm` 0.6, `stepMm` 0 |
 | `contours` | relief with engraved/embossed contour lines | `intervalM` 200, `majorEvery` 5, `lineWidthMm` 0.6, `depthMm` 0.4, `mode` 'engrave'/'emboss' |
 | `lithophane` | backlit lithophane of the hillshade (print in white) | `minMm` 0.8, `maxMm` 3.2, `sunAzimuth` 315, `sunAltitude` 35, `contrast` 1 |
@@ -274,7 +281,8 @@ export const FILAMENTS = [{ id: 'pla-snow-white', name: 'Snow White', material: 
 export function allFilaments(project)         // presets + project.filaments.custom
 export function getFilament(project, id)
 // finishes: 'basic' | 'matte' | 'silk' | 'metallic' | 'marble' | 'wood' | 'glitter' | 'translucent'
-export const FINISHES = { matte: { roughness: 0.92, metalness: 0 }, silk: { roughness: 0.35, metalness: 0.45 }, ... }
+export const FINISHES = { matte: { roughness: 0.92, metalness: 0 }, silk: { roughness: 0.32, metalness: 0.5 }, ... }
+// FINISHES is the single source of the finish looks: preview/materials.js derives FINISH_LOOK from it.
 // catalog/themes.js
 export const THEMES = [{ id, name, description, mode: 'bands'|'single', bands: [{ filamentId, fromFrac?, fromM? }] }]
 export function applyTheme(theme, zmap)      // → [{filamentId, fromM}] (fromFrac is relative to zmap.floorM..zmap.maxElevM; fromM passes through)
@@ -319,14 +327,23 @@ volumetric flow per speed class (slow 6, standard 11, fast 18 mm³/s) + 4 s per 
 // engine/pipeline.js (pure; used by the worker and by Node tests)
 export async function computeArtwork(project, { regionsIndex, dataBaseUrl, quality /* 'preview'|'export' */, fetchImpl, onProgress, signal })
   // preview: resolution chosen so nx*ny <= 600k; export: project.relief.resolutionMm
-  // → { layout, zmap, stats: {minElev, maxElev, missingFraction, source:'local'|'live', levelLabel, pixelSizeM},
-  //     sampled, field }
+  // → { layout, zmap, stats: {minElev, maxElev, missingFraction, waterFraction, source:'local'|'live', levelLabel, pixelSizeM},
+  //     sampled, field, resolutionMm, quality }
+  // After the field is built, zmap.maxZMm is replaced by field.maxZMm – the highest point actually
+  // printed (embossed contours, rib stagger and the thin lithophane panel included); the terrain-only
+  // value stays available as zmap.terrainMaxZMm. Height warnings, preview framing, band 'unused'
+  // flags and the print plan all use zmap.maxZMm.
 export function buildTiles(artwork, project, { quality })      // → TileField[] (preview: withBack=false)
 export function meshTile(tileField, project, { quality, toleranceMm })  // → Mesh
 export function buildPreview(artwork, project)                // → { tiles: [{...TileField meta, mesh}], bands, estimate, stats, layout, zmap }
+export function estimateTiles(tileFields, project, zmap)      // → { bands, estimate } (also used by the worker's 'estimate' request)
+export function encodeTileFile(mesh, { format, name, title, bands, layerHeightMm }) // → ArrayBuffer (STL, or 3MF with the
+  // colour changes of the non-'unused' bands; layerHeightMm = project.colors.layerHeightMm)
 // engine/engine.worker.js – module worker. Messages in: {id, type:'preview'|'estimate'|'export'|'cancel', project, regionsIndex, dataBaseUrl, options}
 //   'estimate' re-runs only band resolution + estimates on the last preview's tile fields (colour/print-setting changes).
-//   out: {id, type:'progress', stage, fraction, message} | {id, type:'result', result} | {id, type:'error', message}
+//   out: {id, type:'progress', stage, fraction, message} | {id, type:'result', result} | {id, type:'error', name, message, stack}
+//   dataBaseUrl must be absolute (EngineClient resolves it against document.baseURI); the worker never
+//   resolves it against its own script URL. Errors are reported (and logged) by the main thread only.
 //   export streams {id, type:'file', name, buffer} per tile (STL/3MF) before the final result.
 // engine/engineClient.js
 export class EngineClient { constructor(workerUrl); preview(project, ctx, onProgress) → Promise; exportTiles(project, ctx, opts, onFile, onProgress) → Promise; cancel(); }
@@ -336,7 +353,8 @@ export class EngineClient { constructor(workerUrl); preview(project, ctx, onProg
 
 ```js
 // export/zip.js       – streaming zip (fflate Zip) → Blob; downloadBlob(blob, name)
-// export/printPlan.js – export function buildPrintPlanHtml({ project, layout, zmap, bands, estimate, stats, screenshotDataUrl }) → string (standalone, printable)
+// export/printPlan.js – export function buildPrintPlanHtml({ project, layout, zmap, bands, estimate, stats, screenshotDataUrl,
+//                        attribution, regionName, styleName, files, resolutionMm }) → string (standalone, printable)
 ```
 
 ### preview/ (DOM, three.js)
@@ -360,7 +378,8 @@ export class MapView extends EventTarget {
   constructor(container, { regionsIndex, dataBaseUrl })
   setRegion(regionId)          // overview overlay + fit bounds ('world' → world view)
   setFrame(frame, layout)      // draw frame polygon, tile grid + labels; never emits
-  fitFrame()
+  fitFrame()                   // a fit requested while the map is hidden is applied by the next resize()
+  resize()                     // call after the map pane changed size or became visible
   setBaseLayer(id)             // 'topo' | 'osm' | 'satellite' | 'none'
   // events: 'framechange' (detail {frame, final}) from dragging/resizing/rotating,
   //         'regionselect' (detail {regionId}) when a region outline is clicked
@@ -375,9 +394,26 @@ sidebar sections (Place, Printer & tiles, Relief, Art style, Colours & filament,
 Estimate, Export), map + 3D preview (split / map / 3D), status bar, progress, toasts.
 Changes debounce (~300 ms) into `engine.preview`. Export streams tiles into a zip.
 
+* Start-up posts the first preview request before the WebGL set-up, so the worker meshes the
+  terrain while the 3D view initialises.
+* The status bar shows data source, scale, artwork size, tiles, height (tallest point · exaggeration,
+  flagged when it exceeds `printer.maxZ`), filament and print time.
+* Failed previews keep the last result on screen (greyed out) and show one actionable toast;
+  network failures (live AWS Terrain Tiles offline / blocked) are logged as warnings, not errors.
+* Narrow screens (< 900 px): the settings become a bottom sheet with tabs, and the workspace shows
+  one pane at a time (Split falls back to 3D).
+* `window.__relief` exposes `{store, engine, mapView, preview, runtime, lastPreview}` for tests.
+
+`scripts/export.mjs` is the headless exporter (same pipeline, `--check` runs `checkWatertight`
+on every tile): `node scripts/export.mjs project.json --format 3mf --check` or
+`node scripts/export.mjs --preset alps "Mont Blanc massif" --out ./prints`.
+
 ## Testing
 
 * `npm test` → `node --test tests/unit/` (pure modules; DEM tests read `data/fuji` via a file
-  `fetchImpl`, see `tests/unit/helpers.js`).
+  `fetchImpl`, see `tests/unit/helpers.js`). `tests/unit/pipeline.test.js` runs the whole
+  pipeline (stored data → watertight STL / 3MF) for every art style.
 * `npm run e2e` → Playwright (`tests/e2e/`) against `node scripts/serve.mjs` on port 4173,
-  Chromium at `/opt/pw-browsers` in this environment.
+  Chromium at `/opt/pw-browsers` in this environment. `flows.spec.js` covers the user flows of the
+  whole app (regions, presets, live-data errors, dragging, printer/tiles, styles, colours, export,
+  print plan, project files, share links, phone layout); external hosts are blocked in all tests.

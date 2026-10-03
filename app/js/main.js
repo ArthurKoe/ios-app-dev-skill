@@ -12,7 +12,7 @@ import { computeLayout, exportResolutionMm } from './model/layout.js';
 import { Preview3D } from './preview/preview3d.js';
 import { createAutosave, loadInitialProject, projectFromJSON, projectToHash, projectToJSON } from './state/persistence.js';
 import {
-  artworkAspect, boundsToRect, createDefaultProject, frameContainingRect, nudgeFrameInside, sameValue, slugify,
+  DEFAULT_PROJECT, artworkAspect, boundsToRect, createDefaultProject, frameForRect, sameValue, slugify,
 } from './state/project.js';
 import { createStore } from './state/store.js';
 import { createBackSection } from './ui/sectionBack.js';
@@ -34,7 +34,7 @@ import { createToaster } from './ui/toasts.js';
 import { createViewModes } from './ui/viewModes.js';
 import { createViewToolbar } from './ui/viewToolbar.js';
 import { debounce, downloadText, h, readPref, writePref } from './ui/dom.js';
-import { formatKm } from './ui/format.js';
+import { formatKm, formatNumber } from './ui/format.js';
 
 /** Location of the elevation data, relative to the page. */
 const DATA_BASE_URL = './data/';
@@ -80,7 +80,8 @@ async function start() {
   const engine = new EngineClient(new URL('./engine/engine.worker.js', import.meta.url));
   const progress = createProgress({ bar: $('progress-bar'), caption: $('preview-status') });
   const mapView = createMap(regionsIndex, toast);
-  const preview = createPreview(toast);
+  /** The 3D preview is created last: the first preview request is already running by then. */
+  let preview = null;
   const manifestRequests = new Map();
 
   // -------------------------------------------------------------------------- actions
@@ -107,9 +108,7 @@ async function start() {
 
   /** Frame with the artwork aspect around `rect`, kept inside the region's stored data if possible. */
   function frameFor(rect, regionId) {
-    const frame = frameContainingRect(rect, artworkAspect(store.get().layout), 0);
-    const region = findRegion(regionId);
-    return region ? nudgeFrameInside(frame, rect, region.bounds) : frame;
+    return frameForRect(rect, artworkAspect(store.get().layout), findRegion(regionId)?.bounds ?? null);
   }
 
   const actions = {
@@ -117,17 +116,20 @@ async function start() {
     ensureManifest,
     currentProject: () => store.get(),
     async selectRegion(regionId) {
-      const p = store.get();
-      // A project still named after its region follows the new region's name.
-      const name = p.name === regionName(regionsIndex, p.regionId) ? regionName(regionsIndex, regionId) : p.name;
       if (regionId === WORLD_ID) {
-        store.set({ regionId: WORLD_ID, name }, { source: 'region' });
+        // Keep the frame (and the name): pick a world preset, search a place or drag the frame.
+        store.set({ regionId: WORLD_ID }, { source: 'region' });
         return;
       }
       const region = findRegion(regionId);
       if (!region) return;
       const manifest = await ensureManifest(regionId);
-      const rect = manifest?.presets?.[0] ?? boundsToRect(region.bounds);
+      // Open on the widest preset (the whole range); the smaller ones are a click away.
+      const rect = widestPreset(manifest?.presets) ?? boundsToRect(region.bounds);
+      const p = store.get();
+      // A project still named after a region (not renamed by the user) follows the new region's name.
+      const named = [DEFAULT_PROJECT.name, regionName(regionsIndex, p.regionId), ...regionsIndex.regions.map((r) => r.name)];
+      const name = named.includes(p.name) ? region.name : p.name;
       store.set({ regionId, name, frame: frameFor(rect, regionId) }, { source: 'region' });
       mapView?.fitFrame();
     },
@@ -135,8 +137,9 @@ async function start() {
       store.set({ frame: frameFor(preset, store.get().regionId) }, { source: 'preset' });
       mapView?.fitFrame();
       const f = store.get().frame;
-      if (f.widthKm > preset.widthKm * 1.02 || f.heightKm > preset.heightKm * 1.02) {
-        toast.info(`${preset.name}: the frame is ${formatKm(f.widthKm)} × ${formatKm(f.heightKm)} to match the artwork proportions.`);
+      if (f.widthKm < preset.widthKm * 0.98 || f.heightKm < preset.heightKm * 0.98) {
+        toast.info(`${preset.name} is cropped to ${formatKm(f.widthKm)} × ${formatKm(f.heightKm)} so it matches the artwork `
+          + 'proportions and stays on the stored high-resolution data.');
       }
     },
     goToPlace(place) {
@@ -201,11 +204,15 @@ async function start() {
     { id: 'printer', title: 'Printer & tiles', short: 'Tiles', content: createPrinterSection(ctx),
       summary: (p) => `${p.layout.cols} × ${p.layout.rows} tiles` },
     { id: 'relief', title: 'Relief', short: 'Relief', content: createReliefSection(ctx),
-      summary: (p, rt) => `${(p.relief.autoExaggeration && rt.zmap ? rt.zmap.exaggeration : p.relief.exaggeration).toFixed(1)}×` },
+      summary: (p, rt) => (rt.zmap
+        ? `${formatNumber(rt.zmap.exaggeration, 1)}×${p.relief.autoExaggeration ? ' auto' : ''} · ${formatNumber(rt.zmap.maxZMm, 0)} mm`
+        : `${p.relief.autoExaggeration ? 'auto' : `${formatNumber(p.relief.exaggeration, 1)}×`}`) },
     { id: 'style', title: 'Art style', short: 'Style', content: createStyleSection(ctx),
       summary: (p) => getArtStyle(p.style.id).name },
     { id: 'colors', title: 'Colours & filament', short: 'Colours', content: createColorsSection(ctx),
-      summary: (p) => (p.colors.mode === 'single' ? 'Single colour' : `${p.colors.bands.length} bands`) },
+      summary: (p, rt) => (p.colors.mode === 'single' || !getArtStyle(p.style.id).supportsBands
+        ? 'Single colour'
+        : `${(rt.bands?.length ? rt.bands.filter((b) => !b.unused) : p.colors.bands).length} colours`) },
     { id: 'back', title: 'Back side', short: 'Back', content: createBackSection(ctx), collapsed: true,
       summary: (p) => [p.back.labels ? 'labels' : '', p.back.magnets.enabled ? 'magnets' : ''].filter(Boolean).join(' + ') || 'flat' },
     { id: 'estimate', title: 'Estimate', short: 'Estimate', content: createEstimateSection(ctx) },
@@ -235,6 +242,8 @@ async function start() {
       sidebar.update(p, runtime);
       statusBar.update(p, runtime);
       toolbar.update(p);
+      // A failed update leaves the previous preview visible, greyed out as outdated.
+      $('preview3d').classList.toggle('is-stale', Boolean(runtime.error));
     });
   }
 
@@ -246,6 +255,8 @@ async function start() {
     previewTimer = setTimeout(runPreview, delay);
   }
 
+  /** Closes the toast of the last failed preview once a preview succeeds again. */
+  let closeErrorToast = null;
   async function runPreview() {
     const project = store.get();
     runtime.busy = true;
@@ -264,13 +275,16 @@ async function start() {
       reportDataQuality(result.stats, project);
       runtime.busy = false;
       progress.done();
+      closeErrorToast?.();
+      closeErrorToast = null;
     } catch (err) {
       if (isAbortError(err)) return; // superseded – the newer request owns the busy state
-      console.error(err);
+      logFailure('Preview failed', err);
       runtime.busy = false;
       runtime.error = err.message;
-      progress.fail('Preview failed');
-      toast.error(friendlyError(err, project, regionsIndex));
+      progress.fail(isNetworkError(err) ? 'No elevation data – see the message below' : 'Preview failed');
+      closeErrorToast?.();
+      closeErrorToast = toast.error(friendlyError(err, project, regionsIndex));
     } finally {
       scheduleUI();
     }
@@ -335,6 +349,7 @@ async function start() {
       regionName: regionName(regionsIndex, project.regionId),
       styleName: getArtStyle(project.style.id).name,
       files,
+      resolutionMm: exportResolutionMm(project),
     });
   }
 
@@ -375,7 +390,7 @@ async function start() {
       if (isAbortError(err)) {
         exportDialog.cancelled();
       } else {
-        console.error(err);
+        logFailure('Export failed', err);
         exportDialog.fail(friendlyError(err, project, regionsIndex));
       }
     } finally {
@@ -416,15 +431,22 @@ async function start() {
 
   // -------------------------------------------------------------------------- change handling
   let hashIsCurrent = initial.origin === 'hash';
+  /** True while a map drag has changed the frame that has not been previewed yet. */
+  let draggedUnpreviewed = false;
   store.subscribe((p, prev, info) => {
     info.warnings.forEach((w) => toast.warn(w));
     const c = info.changes;
+    // Map drags update the store live (map, layout, status) but preview only on release. The final
+    // event usually repeats the last intermediate frame, so the change has to be remembered.
     const dragging = info.source === 'map' && info.final === false;
+    if (dragging && c.terrain) draggedUnpreviewed = true;
+    const dragEnded = !dragging && draggedUnpreviewed;
+    if (dragEnded) draggedUnpreviewed = false;
     const affectsLayout = c.keys.some((k) => ['frame', 'layout', 'printer', 'relief', 'style'].includes(k));
     if (affectsLayout) runtime.layout = computeLayout(p, exportResolutionMm(p));
     if (mapView && c.keys.includes('regionId')) mapView.setRegion(p.regionId);
-    if (mapView && !dragging && (affectsLayout || c.keys.includes('regionId'))) mapView.setFrame(p.frame, runtime.layout);
-    if (c.terrain && !dragging) schedulePreview();
+    if (mapView && !dragging && (affectsLayout || dragEnded || c.keys.includes('regionId'))) mapView.setFrame(p.frame, runtime.layout);
+    if ((c.terrain || dragEnded) && !dragging) schedulePreview();
     if (c.appearance || c.view) applyAppearance();
     if (c.appearance) scheduleEstimate();
     if (c.view) applyView();
@@ -449,14 +471,18 @@ async function start() {
 
   installShortcuts({ actions, viewModes });
   document.title = `${store.get().name} – Relief Studio`;
+  scheduleUI();
+  // Post the first preview request before the (slow on weak GPUs) WebGL set-up, so the worker
+  // loads and meshes the terrain while the 3D view initialises.
+  runPreview();
+  preview = createPreview(toast);
   applyView();
   applyAppearance();
-  scheduleUI();
-  schedulePreview(0);
 
-  /** Test / debugging hook (see tests/e2e/app.spec.js). */
+  /** Test / debugging hook (see tests/e2e/). */
   window.__relief = {
-    store, engine, preview, mapView, runtime,
+    store, engine, mapView, runtime,
+    get preview() { return preview; },
     get lastPreview() { return runtime.preview; },
   };
 }
@@ -522,6 +548,15 @@ function installShortcuts({ actions, viewModes }) {
   });
 }
 
+/**
+ * The preset covering the largest ground area (null for none).
+ * @param {Array<{widthKm:number, heightKm:number}>|undefined} presets
+ * @returns {object|null}
+ */
+function widestPreset(presets) {
+  return (presets ?? []).reduce((best, p) => (!best || p.widthKm * p.heightKm > best.widthKm * best.heightKm ? p : best), null);
+}
+
 function tileLabels(layout) {
   const out = [];
   for (let r = 0; r < layout.rows; r++) for (let c = 0; c < layout.cols; c++) out.push(String.fromCharCode(65 + r) + (c + 1));
@@ -533,19 +568,40 @@ function sameEstimateInputs(a, b) {
   return sameValue(a.colors, b.colors) && sameValue(a.print, b.print) && sameValue(a.filaments, b.filaments);
 }
 
+/** Network / HTTP failures while loading elevation data (expected offline, not a bug). */
+function isNetworkError(err) {
+  return /fetch|network|Failed to load|HTTP [45]\d\d|NetworkError|timed? ?out/i.test(err?.message ?? String(err));
+}
+
+/** Logs a failure: expected network problems as warnings, everything else as errors (with the worker stack). */
+function logFailure(what, err) {
+  if (isNetworkError(err)) console.warn(`${what}: ${err?.message ?? err}`);
+  else console.error(what, err);
+}
+
+/**
+ * A short, actionable message for the user (no stack traces).
+ * @param {unknown} err
+ * @param {object} project
+ * @param {object} regionsIndex
+ * @returns {string}
+ */
 function friendlyError(err, project, regionsIndex) {
   const msg = err?.message ?? String(err);
-  if (/fetch|network|Failed to load|HTTP [45]/i.test(msg) && chooseSource(project, regionsIndex) === 'live') {
-    const region = regionsIndex.regions.find((r) => r.id === project.regionId);
-    return region
-      ? `The frame reaches beyond the stored ${region.name} data and live elevation tiles could not be loaded (offline?). `
-        + 'Move the frame inside the dashed region outline, or set Elevation data to “Stored”.'
-      : 'Live elevation tiles could not be loaded – check the internet connection, or pick a region with stored data.';
+  if (isNetworkError(err)) {
+    if (chooseSource(project, regionsIndex) === 'live') {
+      const region = regionsIndex.regions.find((r) => r.id === project.regionId);
+      return region
+        ? `The frame reaches beyond the stored ${region.name} data, and live elevation tiles could not be loaded (offline?). `
+          + 'Move the frame inside the dashed region outline, or set Elevation data to “Stored”.'
+        : 'Live elevation tiles (AWS Terrain Tiles) could not be loaded – check the internet connection, or pick one of the regions with stored data.';
+    }
+    return 'The stored elevation data could not be loaded – check the connection and reload the page.';
   }
   if (/memory|allocation|Array buffer/i.test(msg)) {
     return 'Not enough memory for this export – use a coarser export detail, fewer tiles or export tiles one by one.';
   }
-  return msg;
+  return `Something went wrong: ${msg}`;
 }
 
 function showFatal(err) {

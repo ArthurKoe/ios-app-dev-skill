@@ -143,8 +143,8 @@ export const ART_STYLES = Object.freeze([
         'Wall thickness of each rib – use at least two extrusion widths (≈0.9 mm) for clean prints.'),
       select('direction', 'Direction', 'horizontal', [['horizontal', 'Horizontal (east–west)'], ['vertical', 'Vertical (north–south)']],
         'Orientation of the ribs on the artwork.'),
-      num('range', 'staggerMm', 'Stagger', 0, [0, 10, 0.5], 'mm',
-        'Offsets successive ribs for a stacked, layered look (0 = ribs follow the terrain only).'),
+      num('range', 'staggerMm', 'Stagger', 0, [0, 1, 0.05], 'mm',
+        'Lifts every rib this much above the one before it (counted from the top edge) for a stacked, layered look – it adds up over all ribs, so keep it small (0 = ribs follow the terrain only).'),
     ]),
   }),
   Object.freeze({
@@ -243,6 +243,22 @@ export function styleParams(project) {
   const out = {};
   for (const p of style.params) {
     out[p.key] = Object.prototype.hasOwnProperty.call(given, p.key) ? coerceParam(p, given[p.key]) : p.default;
+  }
+  return out;
+}
+
+/**
+ * Sanitises stored style parameters: keeps only the parameters the style defines, with invalid
+ * values replaced by the default and numbers clamped to the parameter range (used by
+ * normalizeProject, so hand-edited projects or links cannot ask for e.g. 0.01 mm hex cells).
+ * @param {string} id style id (unknown ids → classic, which has no parameters)
+ * @param {Record<string, unknown>} params
+ * @returns {Record<string, number|string|boolean>}
+ */
+export function sanitizeStyleParams(id, params) {
+  const out = {};
+  for (const p of getArtStyle(id).params) {
+    if (params && Object.prototype.hasOwnProperty.call(params, p.key)) out[p.key] = coerceParam(p, params[p.key]);
   }
   return out;
 }

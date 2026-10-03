@@ -13,19 +13,20 @@
  */
 
 /**
- * Physically based render hints per finish for the 3D preview. `roughness`/`metalness`
+ * Physically based render hints per finish – the single source of truth for the 3D preview
+ * (preview/materials.js reads roughness/metalness from here). `roughness`/`metalness`
  * map to MeshStandardMaterial; the optional extras are 0..1 strengths a renderer may use
  * (sheen/clearcoat/transmission → MeshPhysicalMaterial, sparkle/speckle/grain → procedural).
  * @type {Readonly<Record<Finish, FinishLook>>}
  */
 export const FINISHES = Object.freeze({
-  basic: Object.freeze({ label: 'Basic', roughness: 0.55, metalness: 0, clearcoat: 0.1 }),
+  basic: Object.freeze({ label: 'Basic', roughness: 0.6, metalness: 0, clearcoat: 0.1 }),
   matte: Object.freeze({ label: 'Matte', roughness: 0.92, metalness: 0 }),
-  silk: Object.freeze({ label: 'Silk', roughness: 0.35, metalness: 0.45, sheen: 0.6, clearcoat: 0.3 }),
-  metallic: Object.freeze({ label: 'Metallic', roughness: 0.45, metalness: 0.7 }),
-  marble: Object.freeze({ label: 'Marble', roughness: 0.8, metalness: 0, speckle: 0.35 }),
-  wood: Object.freeze({ label: 'Wood', roughness: 0.88, metalness: 0, grain: 0.4 }),
-  glitter: Object.freeze({ label: 'Glitter', roughness: 0.5, metalness: 0.15, sparkle: 0.6 }),
+  silk: Object.freeze({ label: 'Silk', roughness: 0.32, metalness: 0.5, sheen: 0.6, clearcoat: 0.3 }),
+  metallic: Object.freeze({ label: 'Metallic', roughness: 0.3, metalness: 0.8 }),
+  marble: Object.freeze({ label: 'Marble', roughness: 0.55, metalness: 0, speckle: 0.35 }),
+  wood: Object.freeze({ label: 'Wood', roughness: 0.7, metalness: 0, grain: 0.4 }),
+  glitter: Object.freeze({ label: 'Glitter', roughness: 0.45, metalness: 0.2, sparkle: 0.6 }),
   translucent: Object.freeze({ label: 'Translucent', roughness: 0.3, metalness: 0, transmission: 0.45 }),
 });
 

@@ -5,25 +5,25 @@ import {
   CanvasTexture, Color, LinearMipmapLinearFilter, MeshStandardMaterial, SRGBColorSpace,
   Sprite, SpriteMaterial, Vector2,
 } from 'three';
+import { FINISHES } from '../catalog/filaments.js';
 
 /** Maximum number of filament bands the relief shader can show. */
 export const MAX_BANDS = 12;
 
+/** Shader id of each finish's procedural effect (see `reliefSurface()` below). */
+const FINISH_CODES = Object.freeze({ matte: 0, basic: 1, silk: 2, metallic: 3, marble: 4, wood: 5, glitter: 6, translucent: 7 });
+/** Brightening of the base colour per finish (translucent filaments look lighter). */
+const FINISH_LIFT = Object.freeze({ translucent: 0.14 });
+
 /**
- * Surface look of each filament finish in the preview. `code` is the shader id of the
- * procedural effect; `lift` brightens the base colour (translucent filaments look lighter).
- * @type {Record<string, {roughness:number, metalness:number, code:number, lift:number}>}
+ * Surface look of each filament finish in the preview: roughness / metalness come from the
+ * filament catalogue (catalog/filaments.js FINISHES), `code` is the shader id of the procedural
+ * effect and `lift` brightens the base colour.
+ * @type {Readonly<Record<string, {roughness:number, metalness:number, code:number, lift:number}>>}
  */
-export const FINISH_LOOK = Object.freeze({
-  matte: { roughness: 0.92, metalness: 0, code: 0, lift: 0 },
-  basic: { roughness: 0.6, metalness: 0, code: 1, lift: 0 },
-  silk: { roughness: 0.32, metalness: 0.5, code: 2, lift: 0 },
-  metallic: { roughness: 0.3, metalness: 0.8, code: 3, lift: 0 },
-  marble: { roughness: 0.55, metalness: 0, code: 4, lift: 0 },
-  wood: { roughness: 0.7, metalness: 0, code: 5, lift: 0 },
-  glitter: { roughness: 0.45, metalness: 0.2, code: 6, lift: 0 },
-  translucent: { roughness: 0.3, metalness: 0, code: 7, lift: 0.14 },
-});
+export const FINISH_LOOK = Object.freeze(Object.fromEntries(Object.entries(FINISHES).map(([id, f]) => [id, Object.freeze({
+  roughness: f.roughness, metalness: f.metalness, code: FINISH_CODES[id] ?? FINISH_CODES.basic, lift: FINISH_LIFT[id] ?? 0,
+})])));
 
 /** Colour used when no band table is given (a neutral white PLA). */
 export const FALLBACK_BAND = Object.freeze({ zFrom: 0, color: '#f2f1ec', finish: 'matte' });

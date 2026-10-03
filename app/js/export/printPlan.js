@@ -14,19 +14,19 @@ const LIVE_ATTRIBUTION = 'Live elevation: AWS Terrain Tiles (Mapzen / Linux Foun
  *   project:object, layout:import('../types.js').Layout, zmap:import('../types.js').ZMap,
  *   bands:(import('../types.js').ResolvedBand & {unused?:boolean})[], estimate:object, stats:object,
  *   screenshotDataUrl?:string|null, attribution?:string, regionName?:string, styleName?:string,
- *   generatedAt?:Date, files?:{name:string, label:string}[]
- * }} args
+ *   generatedAt?:Date, files?:{name:string, label:string}[], resolutionMm?:number|null
+ * }} args resolutionMm = sample spacing actually used for the export (default relief.resolutionMm)
  * @returns {string} complete HTML document
  */
 export function buildPrintPlanHtml({
   project, layout, zmap, bands = [], estimate = {}, stats = {}, screenshotDataUrl = null,
-  attribution = '', regionName = '', styleName = '', generatedAt = new Date(), files = [],
+  attribution = '', regionName = '', styleName = '', generatedAt = new Date(), files = [], resolutionMm = null,
 }) {
   const title = `${project.name} – print plan`;
   const sections = [
     headerSection(project, layout, regionName, generatedAt),
     screenshotSection(screenshotDataUrl, project.name),
-    settingsSection(project, layout, zmap, stats, regionName, styleName),
+    settingsSection(project, layout, zmap, stats, regionName, styleName, resolutionMm),
     layoutSection(project, layout, files),
     tilesSection(layout, estimate),
     colorSection(project, bands),
@@ -71,7 +71,7 @@ function screenshotSection(dataUrl, name) {
   return `<figure class="shot"><img src="${dataUrl}" alt="3D preview of ${escapeHtml(name)}"></figure>`;
 }
 
-function settingsSection(project, layout, zmap, stats, regionName, styleName) {
+function settingsSection(project, layout, zmap, stats, regionName, styleName, resolutionMm) {
   const { frame, relief, colors, print, back } = project;
   const rows = [
     ['Region', regionName || project.regionId],
@@ -85,8 +85,10 @@ function settingsSection(project, layout, zmap, stats, regionName, styleName) {
     ['Elevation range', `${formatElevation(stats.minElev)} – ${formatElevation(stats.maxElev)} (floor ${formatElevation(zmap?.floorM)})`],
     ['Highest point on the print', formatMm(zmap?.maxZMm, { digits: 1 })],
     ['Art style', styleName || titleCase(project.style.id)],
-    ['Sample spacing', formatMm(relief.resolutionMm, { digits: 2 })],
-    ['Elevation data', stats.levelLabel ? `${stats.levelLabel}${Number.isFinite(stats.pixelSizeM) ? ` (~${formatNumber(stats.pixelSizeM, 0)} m pixels)` : ''}` : '–'],
+    ['Sample spacing', formatMm(resolutionMm > 0 ? resolutionMm : relief.resolutionMm, { digits: 2 })],
+    ['Elevation data', stats.levelLabel
+      ? `${stats.levelLabel}${Number.isFinite(stats.pixelSizeM) && !/\d\s*m\b/.test(stats.levelLabel) ? ` (~${formatNumber(stats.pixelSizeM, 0)} m pixels)` : ''}`
+      : '–'],
     ['Layers', `${formatMm(colors.firstLayerMm, { digits: 2 })} first layer, then ${formatMm(colors.layerHeightMm, { digits: 2 })}`],
     ['Material & infill', `${print.material}, ${print.infillPct}% infill, ${print.walls} walls`],
     ['Back side', [back.labels ? 'engraved tile labels' : null, back.magnets.enabled ? `${back.magnets.perTile} magnet pockets per tile (⌀${formatNumber(back.magnets.diameterMm, 1)} × ${formatNumber(back.magnets.depthMm, 1)} mm)` : null].filter(Boolean).join(', ') || 'flat'],

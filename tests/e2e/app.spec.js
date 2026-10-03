@@ -3,69 +3,12 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { strFromU8, unzipSync } from '../../app/vendor/fflate/fflate.js';
-import { projectToHash } from '../../app/js/state/persistence.js';
-import { normalizeProject } from '../../app/js/state/store.js';
-
-/** Hosts the sandbox cannot reach; tests must never depend on them. */
-const EXTERNAL = /opentopomap\.org|openstreetmap\.org|arcgisonline\.com|nominatim|amazonaws\.com/;
-
-/** A small Mount Fuji project (stored sample data, fast to sample and mesh). */
-function fujiProject(overrides = {}) {
-  return normalizeProject({
-    name: 'Fuji test',
-    regionId: 'fuji',
-    frame: { lat: 35.36, lon: 138.73, widthKm: 30, rotationDeg: 0 },
-    layout: { cols: 2, rows: 2, tileW: 120, tileH: 120 },
-    ...overrides,
-  });
-}
-
-/** Opens the app with a project in the URL hash and waits for the first preview. */
-async function openWithProject(page, project) {
-  await page.goto(`/${projectToHash(project)}`);
-  await waitForNewPreview(page);
-}
-
-/** Remembers the current preview so waitForNewPreview can detect the next one. */
-async function markPreview(page) {
-  await page.evaluate(() => { window.__previewMark = window.__relief.lastPreview; });
-}
-
-/** Waits until a preview newer than the marked one has been applied and the app is idle. */
-async function waitForNewPreview(page) {
-  await page.waitForFunction(() => {
-    const r = window.__relief;
-    return Boolean(r?.lastPreview) && r.lastPreview !== window.__previewMark && !r.runtime.busy;
-  }, null, { timeout: 90_000 });
-}
-
-/** Parses "1.24 kg" / "840 g" into grams. */
-function grams(text) {
-  const m = /([\d.,]+)\s*(kg|g)/.exec(text);
-  if (!m) return NaN;
-  const v = Number(m[1].replace(/,/g, ''));
-  return m[2] === 'kg' ? v * 1000 : v;
-}
+import { fujiProject, grams, markPreview, openWithProject, prepare, waitForNewPreview } from './helpers.js';
 
 let consoleErrors;
 
 test.beforeEach(async ({ page }) => {
-  consoleErrors = [];
-  await page.route(EXTERNAL, (route) => route.abort());
-  await page.addInitScript(() => {
-    try {
-      localStorage.clear();
-      localStorage.setItem('relief-studio.ui.baseLayer', 'none');
-    } catch {
-      // storage unavailable – the default base layer is used
-    }
-  });
-  page.on('console', (msg) => {
-    if (msg.type() !== 'error') return;
-    if (/Failed to load resource/.test(msg.text()) && EXTERNAL.test(msg.location()?.url ?? '')) return;
-    consoleErrors.push(msg.text());
-  });
-  page.on('pageerror', (err) => consoleErrors.push(String(err)));
+  consoleErrors = await prepare(page);
 });
 
 test.afterEach(() => {

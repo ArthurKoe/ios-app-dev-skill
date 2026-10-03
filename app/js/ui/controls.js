@@ -254,17 +254,21 @@ export function valueRow(o) {
 }
 
 /**
- * Static hint paragraph (explanations of printing concepts).
- * @param {string|Node} text
+ * Hint paragraph (explanations of printing concepts, warnings).
+ * @param {string|Node|((project:object, runtime:object)=>string)} text a function is re-evaluated on every sync
  * @param {{tone?:'info'|'warn', visible?:Function}} [opts]
  * @returns {Control}
  */
 export function hintBlock(text, { tone = 'info', visible } = {}) {
-  const el = h('p', { class: `hint-block hint-${tone}` }, icon(tone === 'warn' ? 'warning' : 'info', { size: 16 }), h('span', null, text));
+  const body = h('span', null, typeof text === 'function' ? '' : text);
+  const el = h('p', { class: `hint-block hint-${tone}` }, icon(tone === 'warn' ? 'warning' : 'info', { size: 16 }), body);
   return {
     el,
     sync(p, rt) {
       el.hidden = visible ? !visible(p, rt) : false;
+      if (el.hidden || typeof text !== 'function') return;
+      const next = text(p, rt);
+      if (body.textContent !== next) body.textContent = next;
     },
   };
 }

@@ -27,7 +27,7 @@ let sampleCache = null;
  * @param {{regionsIndex:object, dataBaseUrl:string, quality?:'preview'|'export', fetchImpl?:typeof fetch,
  *          onProgress?:(p:{stage:string, fraction:number, message:string})=>void, signal?:AbortSignal}} opts
  * @returns {Promise<{layout:import('../types.js').Layout, zmap:import('../types.js').ZMap,
- *   stats:{minElev:number, maxElev:number, missingFraction:number, source:'local'|'live', levelLabel:string, pixelSizeM:number},
+ *   stats:{minElev:number, maxElev:number, missingFraction:number, waterFraction:number, source:'local'|'live', levelLabel:string, pixelSizeM:number},
  *   sampled:{elev:Float32Array, water:Uint8Array, missing:number, minElev:number, maxElev:number},
  *   field:{z:Float32Array, water:Uint8Array, meshToleranceMm?:number}, resolutionMm:number, quality:string}>}
  */
@@ -74,6 +74,7 @@ export async function computeArtwork(project, { regionsIndex, dataBaseUrl, quali
     minElev: sampled.minElev,
     maxElev: sampled.maxElev,
     missingFraction: sampled.missing / (layout.nx * layout.ny),
+    waterFraction: waterShare(sampled.water),
     source: kind,
     levelLabel: level.label,
     pixelSizeM: level.pixelSizeM,
@@ -81,6 +82,10 @@ export async function computeArtwork(project, { regionsIndex, dataBaseUrl, quali
   report('model', 0, 'Shaping the relief…');
   const zmap = computeZMap(project, layout, stats);
   const field = buildArtworkField(sampled, layout, zmap, project);
+  // Styles can rise above the terrain (embossed contours, rib stagger) or stay far below it
+  // (lithophane panel): from here on maxZMm is the highest point actually printed.
+  zmap.terrainMaxZMm = zmap.maxZMm;
+  if (Number.isFinite(field.maxZMm)) zmap.maxZMm = field.maxZMm;
   return { layout, zmap, stats, sampled, field, resolutionMm, quality };
 }
 
@@ -167,14 +172,16 @@ export function estimateTiles(tileFields, project, zmap) {
 /**
  * Serialises one tile mesh to the requested file format.
  * @param {import('../types.js').Mesh} mesh
- * @param {{format:'stl'|'3mf', name:string, title?:string, bands?:import('../types.js').ResolvedBand[]}} opts
+ * @param {{format:'stl'|'3mf', name:string, title?:string, bands?:import('../types.js').ResolvedBand[],
+ *          layerHeightMm?:number}} opts layerHeightMm = project.colors.layerHeightMm (3MF colour changes
+ *   are written for the first layer printed in the new colour)
  * @returns {ArrayBuffer}
  */
-export function encodeTileFile(mesh, { format, name, title = name, bands = [] }) {
+export function encodeTileFile(mesh, { format, name, title = name, bands = [], layerHeightMm }) {
   if (format === '3mf') {
     const colorChanges = bands.slice(1).filter((b) => !b.unused && Number.isFinite(b.zFrom))
       .map((b) => ({ zMm: b.zFrom, color: b.color }));
-    return toArrayBuffer(write3MF([{ name, mesh }], { title, colorChanges }));
+    return toArrayBuffer(write3MF([{ name, mesh }], { title, colorChanges, layerHeightMm }));
   }
   return writeBinarySTL(mesh, name);
 }
@@ -234,8 +241,17 @@ export function clearPipelineCaches() {
 // ---------------------------------------------------------------------------------------------
 
 function progressFraction(p) {
-  const f = typeof p === 'number' ? p : p?.fraction ?? (p?.total ? p.done / p.total : 0);
+  const done = p?.loaded ?? p?.done;
+  const f = typeof p === 'number' ? p : p?.fraction ?? (p?.total && Number.isFinite(done) ? done / p.total : 0);
   return Number.isFinite(f) ? Math.min(1, Math.max(0, f)) : 0;
+}
+
+/** Share of samples flagged as water (lakes or sea), 0 without a mask. */
+function waterShare(water) {
+  if (!water?.length) return 0;
+  let n = 0;
+  for (let i = 0; i < water.length; i++) n += water[i] ? 1 : 0;
+  return n / water.length;
 }
 
 function cloneSampled(s) {

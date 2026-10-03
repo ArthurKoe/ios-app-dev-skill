@@ -64,7 +64,7 @@ function renderTotals(el, est) {
     stat('filament', formatGrams(est.grams), 'estimate-grams'),
     stat('print time', formatDuration(est.minutes), 'estimate-time'),
     stat('material cost', formatMoney(est.cost), 'estimate-cost'),
-    stat('colour changes', formatNumber(est.colorChanges ?? 0, 0), 'estimate-changes'));
+    stat('colour swaps, all tiles', formatNumber(est.colorChanges ?? 0, 0), 'estimate-changes'));
 }
 
 function renderFilaments(el, est) {

@@ -110,7 +110,7 @@ describe('filaments', () => {
       assert.ok(f.roughness >= 0 && f.roughness <= 1 && f.metalness >= 0 && f.metalness <= 1, finish);
     }
     assert.deepEqual([FINISHES.matte.roughness, FINISHES.matte.metalness], [0.92, 0]);
-    assert.deepEqual([FINISHES.silk.roughness, FINISHES.silk.metalness], [0.35, 0.45]);
+    assert.deepEqual([FINISHES.silk.roughness, FINISHES.silk.metalness], [0.32, 0.5]);
   });
 
   test('custom filaments are listed, override presets and unknown ids fall back', () => {

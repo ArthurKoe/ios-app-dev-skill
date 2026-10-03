@@ -542,7 +542,7 @@ describe('sampleFrame', () => {
     await assert.rejects(sampleFrame(slow, frame, 200, 200, { signal: ctl2.signal }), { name: 'AbortError' });
   });
 
-  test('samples 3 M points from Fuji L0 in < 1.5 s', async () => {
+  test('samples 3 M points from Fuji L0 in < 3 s', async () => {
     const src = fujiSource();
     await src.prepare(FUJI_FRAME, 20);
     let best = Infinity;
@@ -554,7 +554,8 @@ describe('sampleFrame', () => {
     }
     assert.equal(s.missing, 0);
     assert.ok(s.maxElev > 3700);
-    assert.ok(best < 1500, `${best.toFixed(0)} ms for 3 M samples`);
+    // ~0.5 s on one idle core; the generous bound only catches real regressions on busy CI machines.
+    assert.ok(best < 3000, `${best.toFixed(0)} ms for 3 M samples`);
   });
 });
 

@@ -12,7 +12,7 @@ import { icon } from './icons.js';
  * @returns {{open:()=>void}}
  */
 export function createFilamentDialog({ store, toast }) {
-  const filter = h('input', { type: 'search', class: 'input', placeholder: 'Filter by name, colour or material', 'aria-label': 'Filter filaments' });
+  const filter = h('input', { type: 'search', class: 'input', placeholder: 'Filter filaments', 'aria-label': 'Filter filaments by name, colour, finish or material' });
   const ownedOnly = h('input', { type: 'checkbox' });
   const list = h('div', { class: 'filament-library', 'data-testid': 'filament-library' });
   const form = customForm(store, toast);

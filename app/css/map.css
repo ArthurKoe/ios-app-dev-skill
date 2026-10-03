@@ -250,9 +250,23 @@
   color: var(--rs-map-control-fg);
 }
 
+/* Small map panes (phones, split view on tablets): compact layer buttons clear of the zoom bar. */
+@container (max-width: 420px) {
+  .rs-map .rs-layer-btn {
+    padding: 0 6px;
+    font-size: 11px;
+  }
+}
+
 @media (max-width: 520px) {
   .rs-map .rs-layer-btn {
     padding: 0 7px;
     font-size: 11px;
+  }
+  /* Keep the attribution to a line or two so it does not cover a small map. */
+  .rs-map .leaflet-control-attribution {
+    max-width: calc(100% - 90px);
+    font-size: 9px;
+    line-height: 1.3;
   }
 }

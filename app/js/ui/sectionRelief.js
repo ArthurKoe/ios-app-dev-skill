@@ -1,5 +1,6 @@
 // Section 3 – Relief: vertical exaggeration, base, floor, smoothing, water, resolution, limits.
 
+import { getArtStyle } from '../catalog/artStyles.js';
 import { h } from './dom.js';
 import { hintBlock, numberField, rangeField, segmentedField, selectField, toggleField, valueRow } from './controls.js';
 import { formatMm, formatNumber } from './format.js';
@@ -11,28 +12,33 @@ const TALL_RELIEF_MM = 60;
 export const RESOLUTION_PRESETS = Object.freeze([['0.25', 'Fine'], ['0.4', 'Standard'], ['0.6', 'Draft'], ['custom', 'Custom']]);
 
 /**
- * @param {{store:object}} ctx
+ * @param {{store:object, runtime:object}} ctx
  * @returns {{el:HTMLElement, sync:(p:object, rt:object)=>void}}
  */
-export function createReliefSection({ store }) {
+export function createReliefSection({ store, runtime }) {
   const set = (relief) => store.set({ relief });
   const auto = (p) => p.relief.autoExaggeration;
+  /** Art styles with a base and a terrain surface (not the lithophane panel). */
+  const isRelief = (p) => getArtStyle(p.style.id).usesBase;
 
-  const exaggeration = rangeField({
-    label: 'Vertical exaggeration', unit: '×', min: 0.5, max: 15, step: 0.1, digits: 2, inputMax: 30, testId: 'exaggeration',
-    hint: 'Mountains are flat at map scale – a 4 km peak on a 1:850,000 map is only 4.7 mm tall. Exaggeration stretches heights so the relief reads from across the room.',
-    get: (p, rt) => (auto(p) && rt.zmap ? rt.zmap.exaggeration : p.relief.exaggeration),
-    set: (v) => set({ exaggeration: v }),
-    disabled: auto,
-  });
   const autoToggle = toggleField({
-    label: 'Automatic – aim for a relief height', testId: 'auto-exaggeration',
-    get: (p) => p.relief.autoExaggeration, set: (v) => set({ autoExaggeration: v }),
+    label: 'Automatic – fit the relief to a target height', testId: 'auto-exaggeration',
+    hint: 'Picks the exaggeration for every area so the highest summit stands the target height above the base – small areas get less, whole ranges more.',
+    get: (p) => p.relief.autoExaggeration,
+    // Switching off keeps the factor currently in use instead of jumping to an old manual value.
+    set: (v) => set(v || !runtime.zmap ? { autoExaggeration: v } : { autoExaggeration: false, exaggeration: runtime.zmap.exaggeration }),
   });
   const target = rangeField({
-    label: 'Target relief', unit: 'mm', min: 5, max: 80, step: 1, digits: 1, inputMax: 300,
-    hint: 'Height from the base to the highest summit.',
+    label: 'Target relief', unit: 'mm', min: 5, max: 80, step: 1, digits: 1, inputMax: 300, testId: 'target-relief',
+    hint: 'Height from the top of the base to the highest summit. 20–40 mm looks great on the wall; the factor is limited to 0.5–30×.',
     get: (p) => p.relief.targetReliefMm, set: (v) => set({ targetReliefMm: v }), visible: auto,
+  });
+  const exaggeration = rangeField({
+    label: 'Vertical exaggeration', unit: '×', min: 0.5, max: 15, step: 0.1, digits: 2, inputMax: 30, testId: 'exaggeration',
+    hint: 'Mountains are flat at map scale – a 4 km peak on a 1:850,000 map is only 4.7 mm tall. Exaggeration stretches heights so the relief reads from across the room. Moving the slider switches Automatic off.',
+    get: (p, rt) => (auto(p) && rt.zmap ? rt.zmap.exaggeration : p.relief.exaggeration),
+    // Setting a factor by hand means "not automatic any more".
+    set: (v) => set({ exaggeration: v, autoExaggeration: false }),
   });
   const base = rangeField({
     label: 'Base thickness', unit: 'mm', min: 0.6, max: 15, step: 0.1, digits: 2, inputMax: 60, testId: 'base',
@@ -55,7 +61,8 @@ export function createReliefSection({ store }) {
     get: (p) => p.relief.smoothingMm, set: (v) => set({ smoothingMm: v }),
   });
   const water = selectField({
-    label: 'Lakes & sea', options: [['recess', 'Recessed (flat, slightly lower)'], ['flat', 'Flat'], ['none', 'Like terrain']],
+    label: 'Lakes & sea', options: [['recess', 'Recessed'], ['flat', 'Flat'], ['none', 'Like terrain']],
+    hint: 'Recessed: flat and a little lower than the shore, so lakes catch the light. Flat: level with the shore.',
     get: (p) => p.relief.water.mode, set: (v) => set({ water: { mode: v } }),
   });
   const waterDepth = rangeField({
@@ -98,22 +105,28 @@ export function createReliefSection({ store }) {
   });
   const result = valueRow({
     label: 'Tallest point', testId: 'max-z',
-    get: (p, rt) => (rt.zmap ? `${formatMm(rt.zmap.maxZMm, { digits: 1 })} at ${formatNumber(rt.zmap.exaggeration, 1)}×` : '…'),
+    hint: 'Including the base – this is the print height of the tallest tile.',
+    get: (p, rt) => (rt.zmap ? `${formatMm(rt.zmap.maxZMm, { digits: 1 })} at ${formatNumber(rt.zmap.exaggeration, 1)}×${auto(p) ? ' (auto)' : ''}` : '…'),
   });
   const thin = hintBlock('With so little relief the terrain is barely visible – raise the exaggeration or turn on Automatic.', {
-    tone: 'warn', visible: (p, rt) => Boolean(rt.zmap) && rt.zmap.maxZMm - rt.zmap.baseMm < 3,
+    tone: 'warn', visible: (p, rt) => isRelief(p) && Boolean(rt.zmap) && rt.zmap.maxZMm - rt.zmap.baseMm < 3,
   });
   const tall = hintBlock('This relief is very tall: summits become fragile and every extra millimetre adds print time. '
-    + 'For a smaller area, less exaggeration (or Automatic with ~25 mm) usually looks more natural.', {
-    tone: 'warn', visible: (p, rt) => Boolean(rt.zmap) && rt.zmap.maxZMm - rt.zmap.baseMm > TALL_RELIEF_MM,
+    + 'Less exaggeration (or Automatic with 25–40 mm) usually looks more natural.', {
+    tone: 'warn', visible: (p, rt) => isRelief(p) && Boolean(rt.zmap) && rt.zmap.maxZMm - rt.zmap.baseMm > TALL_RELIEF_MM
+      && rt.zmap.maxZMm <= p.printer.maxZ,
+  });
+  const tooTall = hintBlock((p, rt) => `At ${formatMm(rt.zmap.maxZMm, { digits: 0 })} the relief is taller than your printer's `
+    + `${formatNumber(p.printer.maxZ, 0)} mm build height. Lower the ${auto(p) ? 'target relief' : 'exaggeration'} or set a max height below.`, {
+    tone: 'warn', visible: (p, rt) => Boolean(rt.zmap) && rt.zmap.maxZMm > p.printer.maxZ,
   });
 
   const controls = [
-    exaggeration, autoToggle, target, result, thin, tall, base, floor, floorElevation, smoothing, water, waterDepth,
+    autoToggle, target, exaggeration, result, thin, tall, tooTall, base, floor, floorElevation, smoothing, water, waterDepth,
     resolution, resolutionCustom, resolutionInfo, simplify, maxHeight,
   ];
   const el = h('div', { class: 'section-relief' },
-    exaggeration.el, autoToggle.el, target.el, result.el, thin.el, tall.el,
+    autoToggle.el, target.el, exaggeration.el, result.el, thin.el, tall.el, tooTall.el,
     h('h3', { class: 'subhead' }, 'Base & floor'), base.el, floor.el, floorElevation.el,
     h('h3', { class: 'subhead' }, 'Surface'), smoothing.el, water.el, waterDepth.el,
     h('h3', { class: 'subhead' }, 'Export'), resolution.el, resolutionCustom.el, resolutionInfo.el, simplify.el, maxHeight.el);

@@ -317,6 +317,8 @@ export class MapView extends EventTarget {
     this._outlines = new Map();
     /** @type {(() => void)|null} fit waiting for a running zoom animation to end */
     this._deferredFit = null;
+    /** @type {[L.LatLngBounds, L.FitBoundsOptions]|null} fit waiting for the map to get a size */
+    this._pendingFit = null;
     /** @type {L.Marker[]} */
     this._labelMarkers = [];
     /** @type {string[]} text shown by each label marker */
@@ -471,6 +473,17 @@ export class MapView extends EventTarget {
   /** Call after the container changed size. */
   resize() {
     this.map.invalidateSize();
+    // A fit requested while the map was hidden (e.g. the 3D tab on a phone) is applied now.
+    if (this._pendingFit && this._hasSize()) {
+      const [bounds, options] = this._pendingFit;
+      this._pendingFit = null;
+      this._fitView(bounds, options);
+    }
+  }
+
+  /** True when the map container is laid out (not display:none or collapsed). */
+  _hasSize() {
+    return this.container.clientWidth > 0 && this.container.clientHeight > 0;
   }
 
   /** Removes the map and all listeners. */
@@ -489,6 +502,11 @@ export class MapView extends EventTarget {
    */
   _fitView(bounds, options) {
     const map = this.map;
+    if (!this._hasSize()) {
+      this._pendingFit = [bounds, options];
+      return;
+    }
+    this._pendingFit = null;
     const fit = () => map.fitBounds(bounds, { ...options, animate: false });
     if (this._deferredFit) map.off('zoomend', this._deferredFit);
     this._deferredFit = null;

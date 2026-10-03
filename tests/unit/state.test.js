@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   DEFAULT_PROJECT, artworkAspect, boundsToRect, classifyChange, createDefaultProject,
-  frameContainingRect, nudgeFrameInside, sameValue, slugify, wrapLon,
+  frameContainingRect, frameForRect, nudgeFrameInside, sameValue, slugify, wrapLon,
 } from '../../app/js/state/project.js';
 import { frameBounds } from '../../app/js/core/projection.js';
 import { MIN_ABOVE_POCKET_MM, createStore, deepMerge, normalizeBands, normalizeProject } from '../../app/js/state/store.js';
@@ -29,8 +29,10 @@ describe('DEFAULT_PROJECT', () => {
     assert.equal(DEFAULT_PROJECT.regionId, 'alps');
     assert.deepEqual(DEFAULT_PROJECT.frame, { lat: 45.95, lon: 10.75, widthKm: 900, heightKm: 450, rotationDeg: 0 });
     assert.deepEqual(DEFAULT_PROJECT.layout, { cols: 4, rows: 2, tileW: 246, tileH: 246 });
-    assert.deepEqual(DEFAULT_PROJECT.printer, { presetId: 'bambu-x1', bedW: 256, bedH: 256, maxZ: 250, nozzleMm: 0.4 });
+    assert.deepEqual(DEFAULT_PROJECT.printer, { presetId: 'bambu-x1', bedW: 256, bedH: 256, maxZ: 256, nozzleMm: 0.4 });
     assert.equal(DEFAULT_PROJECT.relief.exaggeration, 4);
+    assert.equal(DEFAULT_PROJECT.relief.autoExaggeration, true);
+    assert.equal(DEFAULT_PROJECT.relief.targetReliefMm, 30);
     assert.deepEqual(DEFAULT_PROJECT.relief.water, { mode: 'recess', depthMm: 0.6 });
     assert.equal(DEFAULT_PROJECT.colors.bands.length, 4);
     assert.equal(DEFAULT_PROJECT.colors.bands[0].fromM, null);
@@ -159,11 +161,14 @@ describe('normalizeProject', () => {
         custom: [{ id: 'my', name: ' Glacier ', color: '#ABCDEF', finish: 'silk', material: 'PETG', pricePerKg: 25 },
           { id: 'my', name: 'dup', color: 'nope' }, 'junk'],
       },
-      style: { id: 'terraced', params: { count: 12, nested: { x: 1 }, snap: true, bad: NaN } },
+      style: { id: 'terraced', params: { count: 12, nested: { x: 1 }, snap: true, bad: NaN, stepM: 1e6, snapToLayers: 'yes' } },
     });
     assert.deepEqual(p.filaments.owned, ['a', 'b']);
     assert.deepEqual(p.filaments.custom, [{ id: 'my', name: 'Glacier', material: 'PETG', color: '#abcdef', finish: 'silk', pricePerKg: 25 }]);
-    assert.deepEqual(p.style.params, { count: 12, snap: true });
+    // Only the style's own parameters survive; numbers are clamped, invalid values fall back to the default.
+    assert.deepEqual(p.style.params, { count: 12, stepM: 2000, snapToLayers: true });
+    assert.equal(normalizeProject({ style: { id: 'hex', params: { cellMm: 0.01 } } }).style.params.cellMm, 2);
+    assert.deepEqual(normalizeProject({ style: { id: 'nope', params: { a: 1 } } }).style, { id: 'classic', params: {} });
   });
 });
 
@@ -356,5 +361,34 @@ describe('persistence', () => {
     store.set({ name: 'Four' });
     await new Promise((r) => setTimeout(r, 40));
     assert.equal(JSON.parse(storage.getItem(STORAGE_KEY)).name, 'Three');
+  });
+});
+
+describe('frameForRect', () => {
+  const alps = { south: 43, west: 4, north: 49, east: 17 };
+  const inside = (f, b) => {
+    const fb = frameBounds(f);
+    return fb.south >= b.south && fb.north <= b.north && fb.west >= b.west && fb.east <= b.east;
+  };
+
+  test('widens a preset to the artwork aspect when that still fits the data', () => {
+    const f = frameForRect({ lat: 46, lon: 7.8, widthKm: 30, heightKm: 22 }, 0.5, alps);
+    assert.ok(Math.abs(f.widthKm - 44) < 1e-9 && Math.abs(f.heightKm - 22) < 1e-9);
+    assert.ok(inside(f, alps));
+  });
+
+  test('crops a preset whose widened frame would leave the stored data', () => {
+    const rect = { lat: 45.95, lon: 10.75, widthKm: 900, heightKm: 520 };
+    const f = frameForRect(rect, 0.5, alps);
+    assert.ok(inside(f, alps), 'stays on stored data');
+    assert.ok(f.widthKm >= 900 - 1e-6 && f.widthKm < 1040, `width ${f.widthKm}`);
+    assert.ok(Math.abs(f.heightKm - f.widthKm * 0.5) < 1e-9);
+  });
+
+  test('falls back to the containing frame when nothing fits, and ignores missing bounds', () => {
+    const tiny = { south: 46, west: 7, north: 46.1, east: 7.1 };
+    const rect = { lat: 46.05, lon: 7.05, widthKm: 50, heightKm: 40 };
+    assert.equal(frameForRect(rect, 0.5, tiny).widthKm, 80);
+    assert.deepEqual(frameForRect(rect, 0.5, null), { lat: 46.05, lon: 7.05, widthKm: 80, heightKm: 40, rotationDeg: 0 });
   });
 });

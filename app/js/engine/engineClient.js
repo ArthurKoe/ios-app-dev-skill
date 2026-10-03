@@ -118,7 +118,7 @@ export class EngineClient {
         break;
       case 'error':
         this._pending.delete(msg.id);
-        job.reject(msg.name === 'AbortError' ? new EngineAbortError(msg.message) : new Error(msg.message));
+        job.reject(msg.name === 'AbortError' ? new EngineAbortError(msg.message) : engineError(msg));
         break;
       default:
         break;
@@ -130,6 +130,18 @@ export class EngineClient {
     this._pending.clear();
     for (const job of jobs) job.reject(error);
   }
+}
+
+/**
+ * Rebuilds a worker error on the main thread (keeps the original name and the worker's stack).
+ * @param {{name?:string, message:string, stack?:string}} msg
+ * @returns {Error}
+ */
+function engineError(msg) {
+  const err = new Error(msg.message);
+  if (msg.name && msg.name !== 'Error') err.name = msg.name;
+  if (msg.stack) err.stack = msg.stack;
+  return err;
 }
 
 /**

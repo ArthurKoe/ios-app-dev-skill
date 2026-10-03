@@ -38,6 +38,8 @@ const WALL_ORIENTATION = new THREE.Quaternion();
 const BUILD_SLICE_MS = 12;
 const TILE_EASE_MS = 110;
 const RESIZE_REFRAME = 0.15;
+/** Zoom-out limit as a multiple of the artwork size (raised for narrow views, see resetCamera). */
+const MAX_DISTANCE_FACTOR = 3.2;
 
 /**
  * Computes per-corner normals for an indexed triangle mesh, splitting vertices where faces meet
@@ -381,6 +383,8 @@ export class Preview3D {
     if (this._disposed) return;
     const c = this.controls;
     const { position, target } = this._framingPose(this.camera.aspect);
+    // Narrow (portrait) views need the camera further away than the default zoom-out limit.
+    c.maxDistance = Math.max(Math.max(this._extent.w, this._extent.h) * MAX_DISTANCE_FACTOR, position.distanceTo(target) * 1.6);
     // Without damping, update() consumes any residual orbit inertia instead of easing it in.
     c.enableDamping = false;
     c.update();
@@ -616,7 +620,8 @@ export class Preview3D {
       c.minPolarAngle = 0; c.maxPolarAngle = 1.45;
     }
     c.minDistance = size * 0.06;
-    c.maxDistance = size * 3.2;
+    const pose = this._framingPose(this.camera.aspect);
+    c.maxDistance = Math.max(size * MAX_DISTANCE_FACTOR, pose.position.distanceTo(pose.target) * 1.6);
     this.camera.near = Math.max(0.05, size * 0.003);
     this.camera.far = size * 30;
     this.camera.updateProjectionMatrix();

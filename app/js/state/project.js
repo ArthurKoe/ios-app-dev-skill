@@ -10,10 +10,10 @@ export const DEFAULT_PROJECT = {
   regionId: 'alps',
   source: 'auto',
   frame: { lat: 45.95, lon: 10.75, widthKm: 900, heightKm: 450, rotationDeg: 0 },
-  printer: { presetId: 'bambu-x1', bedW: 256, bedH: 256, maxZ: 250, nozzleMm: 0.4 },
+  printer: { presetId: 'bambu-x1', bedW: 256, bedH: 256, maxZ: 256, nozzleMm: 0.4 },
   layout: { cols: 4, rows: 2, tileW: 246, tileH: 246 },
   relief: {
-    exaggeration: 4, autoExaggeration: false, targetReliefMm: 25,
+    exaggeration: 4, autoExaggeration: true, targetReliefMm: 30,
     baseMm: 3,
     floor: { mode: 'auto', elevationM: 0 },
     smoothingMm: 0.4,
@@ -168,6 +168,40 @@ export function nudgeFrameInside(frame, keep, bounds) {
     out.lat = keep.lat + Math.min(slackLat, Math.max(-slackLat, out.lat + dLat - keep.lat));
   }
   return out;
+}
+
+/**
+ * Frame for a preset rectangle `keep` with the artwork aspect, preferring one that lies entirely
+ * inside `bounds` (a region's stored data): first the smallest frame containing `keep` (nudged
+ * inside), otherwise the largest frame in between that and the frame covered by `keep` (keep's
+ * longer side cropped) that still fits. When not even the cropped frame fits, the containing
+ * frame is returned (nudged as far inside as possible).
+ * @param {{lat:number, lon:number, widthKm:number, heightKm:number}} keep
+ * @param {number} aspect artwork height / width
+ * @param {{south:number, west:number, north:number, east:number}|null} bounds
+ * @returns {import('../types.js').Frame}
+ */
+export function frameForRect(keep, aspect, bounds) {
+  const containing = frameContainingRect(keep, aspect, 0);
+  if (!bounds) return containing;
+  const nudged = nudgeFrameInside(containing, keep, bounds);
+  if (insideBounds(nudged, bounds)) return nudged;
+  const at = (widthKm) => nudgeFrameInside({ ...containing, widthKm, heightKm: widthKm * aspect }, keep, bounds);
+  let lo = Math.min(keep.widthKm, keep.heightKm / aspect);
+  if (!insideBounds(at(lo), bounds)) return nudged;
+  let hi = containing.widthKm;
+  for (let i = 0; i < 24 && hi - lo > 1e-3 * hi; i++) {
+    const mid = (lo + hi) / 2;
+    if (insideBounds(at(mid), bounds)) lo = mid;
+    else hi = mid;
+  }
+  return at(lo);
+}
+
+/** True when the frame's lat/lon bounding box lies inside `bounds`. */
+function insideBounds(frame, bounds) {
+  const b = frameBounds(frame);
+  return b.south >= bounds.south && b.north <= bounds.north && b.west >= bounds.west && b.east <= bounds.east;
 }
 
 /**

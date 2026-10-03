@@ -1,6 +1,7 @@
 // Project store with change notifications, and project normalisation (invariants + clamps).
 // DOM-free.
 
+import { ART_STYLES, sanitizeStyleParams } from '../catalog/artStyles.js';
 import { DEFAULT_PROJECT, artworkAspect, classifyChange, wrapLon } from './project.js';
 
 const SOURCES = ['auto', 'local', 'live'];
@@ -126,7 +127,7 @@ function normalizePrinter(pr) {
   pr.presetId = typeof pr.presetId === 'string' && pr.presetId ? pr.presetId : 'custom';
   pr.bedW = round(clamp(pr.bedW, ...LIMITS.bed, 256), 1);
   pr.bedH = round(clamp(pr.bedH, ...LIMITS.bed, 256), 1);
-  pr.maxZ = round(clamp(pr.maxZ, ...LIMITS.maxZ, 250), 1);
+  pr.maxZ = round(clamp(pr.maxZ, ...LIMITS.maxZ, 256), 1);
   pr.nozzleMm = round(clamp(pr.nozzleMm, ...LIMITS.nozzleMm, 0.4), 2);
 }
 
@@ -152,7 +153,7 @@ function normalizeFrame(f, aspect) {
 function normalizeRelief(r) {
   r.exaggeration = round(clamp(r.exaggeration, ...LIMITS.exaggeration, 4), 2);
   r.autoExaggeration = Boolean(r.autoExaggeration);
-  r.targetReliefMm = clamp(r.targetReliefMm, ...LIMITS.targetReliefMm, 25);
+  r.targetReliefMm = clamp(r.targetReliefMm, ...LIMITS.targetReliefMm, 30);
   r.baseMm = round(clamp(r.baseMm, ...LIMITS.baseMm, 3), 2);
   r.floor.mode = oneOf(r.floor.mode, FLOOR_MODES, 'auto');
   r.floor.elevationM = clamp(r.floor.elevationM, ...LIMITS.floorElevationM, 0);
@@ -165,12 +166,8 @@ function normalizeRelief(r) {
 }
 
 function normalizeStyle(s) {
-  s.id = typeof s.id === 'string' && s.id ? s.id : 'classic';
-  const params = {};
-  for (const [k, v] of Object.entries(isObject(s.params) ? s.params : {})) {
-    if ((typeof v === 'number' && Number.isFinite(v)) || typeof v === 'string' || typeof v === 'boolean') params[k] = v;
-  }
-  s.params = params;
+  s.id = ART_STYLES.some((style) => style.id === s.id) ? s.id : 'classic';
+  s.params = sanitizeStyleParams(s.id, isObject(s.params) ? s.params : {});
 }
 
 function normalizeColors(c) {
