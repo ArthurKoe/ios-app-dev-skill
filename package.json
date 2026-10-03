@@ -1,0 +1,20 @@
+{
+  "name": "relief-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Design tiled, 3D-printable relief maps of the Alps and other mountain ranges.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node --test tests/unit/",
+    "e2e": "playwright test",
+    "build:data": "python3 pipeline/build.py"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
