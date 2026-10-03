@@ -18,7 +18,7 @@ export default defineConfig({
   },
   webServer: {
     command: 'node scripts/serve.mjs 4173',
-    url: 'http://localhost:4173/',
+    url: 'http://localhost:4173/data/regions.json',
     reuseExistingServer: true,
     timeout: 30_000,
   },
