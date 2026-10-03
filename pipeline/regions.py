@@ -94,7 +94,7 @@ REGIONS = [
         "subtitle": "From the Basque coast to the Mediterranean",
         "bounds": [42, -2, 44, 4],
         "presets": [
-            ["Pyrenees", 42.7, 0.8, 420, 150],
+            ["Pyrenees", 42.72, 0.8, 400, 145],
             ["Aneto & Maladeta", 42.63, 0.66, 30, 25],
             ["Ordesa & Monte Perdido", 42.67, 0.03, 30, 25],
             ["Andorra", 42.55, 1.58, 40, 35],
@@ -107,7 +107,7 @@ REGIONS = [
         "glo30": "all",
         "presets": [
             ["High Tatras", 49.18, 20.1, 40, 25],
-            ["Tatra Mountains", 49.2, 19.95, 80, 45],
+            ["Tatra Mountains", 49.21, 19.95, 80, 44],
         ],
     },
     {
@@ -115,7 +115,7 @@ REGIONS = [
         "subtitle": "A mountain range rising from the Mediterranean",
         "bounds": [41, 8, 43, 10],
         "presets": [
-            ["Corsica", 42.15, 9.05, 110, 190],
+            ["Corsica", 42.13, 9.05, 110, 186],
             ["Monte Cinto & Restonica", 42.3, 8.95, 40, 35],
         ],
     },
@@ -134,7 +134,7 @@ REGIONS = [
         "subtitle": "The whole island with its ice caps",
         "bounds": [63, -25, 67, -13],
         "presets": [
-            ["Iceland", 64.95, -18.6, 520, 360],
+            ["Iceland", 64.95, -18.75, 500, 360],
             ["Vatnajökull", 64.4, -16.8, 160, 110],
         ],
     },
@@ -144,7 +144,7 @@ REGIONS = [
         "bounds": [28, -17, 29, -16],
         "glo30": "all",
         "presets": [
-            ["Tenerife & Teide", 28.27, -16.6, 90, 70],
+            ["Tenerife & Teide", 28.29, -16.55, 84, 62],
             ["Teide caldera", 28.26, -16.64, 25, 20],
         ],
     },
@@ -241,7 +241,7 @@ REGIONS = [
         "presets": [
             ["Fitz Roy & Cerro Torre", -49.28, -73.06, 25, 20],
             ["Torres del Paine", -50.98, -73.0, 35, 30],
-            ["Southern Patagonian Ice Field", -49.9, -73.4, 110, 200],
+            ["Southern Patagonian Ice Field", -49.9, -73.2, 100, 200],
         ],
     },
     {

@@ -68,6 +68,22 @@ def sample_source(res: int, lat: float, lon: float) -> float:
                  + t[y0 + 1, x0] * fy * (1 - fx) + t[y0 + 1, x0 + 1] * fy * fx)
 
 
+def check_presets(m: dict) -> bool:
+    """Every preset frame (unrotated) must lie inside the region bounds, or the app falls back to live data."""
+    b = m["bounds"]
+    ok = True
+    for p in m["presets"]:
+        dlat = p["heightKm"] / 2 / 111.32
+        worst_lat = max(abs(p["lat"] - dlat), abs(p["lat"] + dlat))
+        dlon = p["widthKm"] / 2 / (111.32 * np.cos(np.radians(min(worst_lat, 89))))
+        inside = (p["lat"] - dlat >= b["south"] and p["lat"] + dlat <= b["north"]
+                  and p["lon"] - dlon >= b["west"] and p["lon"] + dlon <= b["east"])
+        if not inside:
+            ok = False
+            print(f"  BAD preset '{p['name']}' extends beyond the region bounds")
+    return ok
+
+
 def verify(region_id: str, n: int = 300) -> bool:
     rdir = DATA / region_id
     m = json.loads((rdir / "manifest.json").read_text())
@@ -75,7 +91,7 @@ def verify(region_id: str, n: int = 300) -> bool:
     rng = np.random.default_rng(42)
     lats = rng.uniform(b["south"] + 0.01, b["north"] - 0.01, n)
     lons = rng.uniform(b["west"] + 0.01, b["east"] - 0.01, n)
-    ok = True
+    ok = check_presets(m)
     for lvl in m["levels"]:
         res = 30 if lvl["level"] == 0 else 90
         errs = []
